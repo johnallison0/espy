@@ -2,7 +2,7 @@ from subprocess import run, PIPE
 import itertools
 
 
-def read_esp_file(filepath):
+def read_file(filepath):
     # Reads in generic ESP-r format files.
     # All comments (#) are stripped and each line is an element in the returned
     # list. Each line element is stripped of whitespace at either end, and is
