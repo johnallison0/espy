@@ -2,6 +2,30 @@ from subprocess import run, PIPE
 import itertools
 
 
+def read_esp_file(filepath):
+    # Reads in generic ESP-r format files.
+    # All comments (#) are stripped and each line is an element in the returned
+    # list. Each line element is stripped of whitespace at either end, and is
+    # partitioned at the first whitespace character.
+    # Further splitting of elements will be required based on what file type is
+    # being read.
+    file = []
+    with open(filepath, "r") as fp:
+        for cnt, line in enumerate(fp):
+            # .partition returns a tuple: everything before the partition string,
+            # the partition string, and everything after the partition string.
+            # By indexing with [0] takes just the part before the partition string.
+            line = line.partition("#")[0]
+
+            # Split line after first whitespace and remove all whitespace
+            line = [x.strip() for x in line.strip().split(" ", 1)]
+
+            # if line not empty append to file list
+            if line[0]:
+                file.append(line)
+    return file
+
+
 def edit_material_prop(cfg_file, change_list):
     # This function will build the command list to edit material properties in
     # the materials db via prj.
