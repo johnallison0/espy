@@ -2,13 +2,15 @@ from subprocess import run, PIPE
 import itertools
 
 
-def read_file(filepath):
-    # Reads in generic ESP-r format files.
-    # All comments (#) are stripped and each line is an element in the returned
-    # list. Each line element is stripped of whitespace at either end, and is
-    # partitioned at the first whitespace character.
-    # Further splitting of elements will be required based on what file type is
-    # being read.
+def _read_file(filepath):
+    """
+    Reads in generic ESP-r format files.
+    All comments (#) are stripped and each line is an element in the returned
+    list. Each line element is stripped of whitespace at either end, and is
+    partitioned at the first whitespace character.
+    Further splitting of elements will be required based on what file type is
+    being read.
+    """
     file = []
     with open(filepath, "r") as fp:
         for cnt, line in enumerate(fp):
@@ -24,6 +26,33 @@ def read_file(filepath):
             if line[0]:
                 file.append(line)
     return file
+
+
+def _get_var(ifile, str):
+    return [x[1] for x in ifile if x[0] == str][0]
+
+
+def read_geo(filepath):
+    file = _read_file(filepath)
+
+    # Zone name
+    zoneName = _get_var(file, '*Geometry').split(',')[2]
+
+    # Modified date
+    date = _get_var(file, '*date')  # string
+    # date = datetime.strptime(date, "%a %b %d %H:%M:%S %Y")  # datetime
+
+    # Zone description
+    zone_desc = ' '.join(file[2])
+
+    # Need to re-split file to access items with comma following keyword
+    file2 = []
+    for x in file:
+        file_split = x[0].split(',', 1)
+        if file_split:
+            file2.append(file_split)
+
+    return zoneName, zone_desc, date, file2
 
 
 def edit_material_prop(cfg_file, change_list):
