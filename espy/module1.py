@@ -1,5 +1,6 @@
 from subprocess import run, PIPE
 import itertools
+from datetime import datetime
 
 
 def _read_file(filepath):
@@ -29,30 +30,145 @@ def _read_file(filepath):
 
 
 def _get_var(ifile, str):
-    return [x[1] for x in ifile if x[0] == str][0]
+    y = [x[1] for x in ifile if x[0] == str]
+    if y:
+        var = y[0]
+    else:
+        var = None
+
+    return var
+
+
+def read_cfg(filepath):
+    """
+    Reads in an ESP-r configuration file.
+    """
+    cfg = _read_file(filepath)
+
+    # Modified date
+    date = _get_var(cfg, '*date')  # string
+    date = datetime.strptime(date, "%a %b %d %H:%M:%S %Y")  # datetime
+
+    # Build dictionary of model paths
+    paths = {
+        'zones': _get_var(cfg, '*zonpth'),
+        'networks': _get_var(cfg, '*netpth'),
+        'controls': _get_var(cfg, '*ctlpth'),
+        'aim': _get_var(cfg, '*aimpth'),
+        'radiance': _get_var(cfg, '*radpth'),
+        'images': _get_var(cfg, '*imgpth'),
+        'documents': _get_var(cfg, '*docpth'),
+        'databases': _get_var(cfg, '*dbspth'),
+        'hvac': _get_var(cfg, '*hvacpth'),
+        'BASESIMP': _get_var(cfg, '*bsmpth')
+    }
+
+    # Build dictionary of model databases
+    databases = {
+        'material': _get_var(cfg, '*stdmat'),
+        'cfc': _get_var(cfg, '*stdcfcdb'),
+        'mlc': _get_var(cfg, '*stdmlc'),
+        'optics': _get_var(cfg, '*stdopt'),
+        'pressure': _get_var(cfg, '*stdprs'),
+        'devn': _get_var(cfg, '*stdevn'),
+        'climate': _get_var(cfg, '*stdclm'),
+        'mscl': _get_var(cfg, '*stdmscldb'),
+        'mould': _get_var(cfg, '*stdmould'),
+        'plant': _get_var(cfg, '*stdpdb'),
+        'sbem': _get_var(cfg, '*stdsbem'),
+        'predef': _get_var(cfg, '*stdpredef')
+    }
+
+    # Control file
+    ctl = _get_var(cfg, '*ctl')
+
+    # Assessment year
+    year = _get_var(cfg, '*year')
+
+    # Get index numbers of list elements for begin of each zone desc.
+    idx_zone_begin = [ind for ind, x in enumerate(cfg) if x[0] == '*zon']
+    idx_zone_end = [ind for ind, x in enumerate(cfg) if x[0] == '*zend']
+    n_zones = len(idx_zone_begin)
+
+    # loop through each 'slide' of the cfg_file for the various zone files
+    Z = []
+    for i in range(n_zones):
+        cfg_slice = cfg[idx_zone_begin[i]:idx_zone_end[i]]
+
+        # Get zone no.
+        iz_zone = _get_var(cfg_slice, '*zon')
+
+        # Add files to dictionary
+        iz_files = {
+            'opr': _get_var(cfg_slice, '*opr'),
+            'geo': _get_var(cfg_slice, '*geo'),
+            'con': _get_var(cfg_slice, '*con'),
+            'tmc': _get_var(cfg_slice, '*tmc')
+        }
+
+        # Append to list
+        Z.append([int(iz_zone), iz_files])
+
+    # If list is empty return NoneType
+    if not Z:
+        Z = None
+
+    return cfg, date, paths, databases, ctl, year, Z
 
 
 def read_geo(filepath):
-    file = _read_file(filepath)
+    """
+    Reads in an ESP-r geometry file.
+
+    Returns the name and description of the zone.
+
+    Returns the last modified date.
+
+    Returns a list of the vertices, where each element is a list of floats
+    specifying the x, y, z coordinate in space.
+
+    Returns a list of the surface edges, where each element is a list of ints
+    specifying the vertex numbers that make up the surface.
+    Note that these are referenced as 1-indexed.
+
+    Returns a list of the surface attributes, where each element is:
+    ['surf name', 'surf position', 'child of (surface name)',
+    'useage1', 'useage2', 'construction name', 'optical name',
+    'boundary condition', 'dat1', 'dat2']
+    """
+    geo = _read_file(filepath)
 
     # Zone name
-    zoneName = _get_var(file, '*Geometry').split(',')[2]
+    name = _get_var(geo, '*Geometry').split(',')[2]
 
     # Modified date
-    date = _get_var(file, '*date')  # string
-    # date = datetime.strptime(date, "%a %b %d %H:%M:%S %Y")  # datetime
+    date = _get_var(geo, '*date')  # string
+    date = datetime.strptime(date, "%a %b %d %H:%M:%S %Y")  # datetime
 
     # Zone description
-    zone_desc = ' '.join(file[2])
+    desc = ' '.join(geo[2])
 
     # Need to re-split file to access items with comma following keyword
     file2 = []
-    for x in file:
+    for x in geo:
         file_split = x[0].split(',', 1)
         if file_split:
             file2.append(file_split)
 
-    return zoneName, zone_desc, date, file2
+    # Scan through list and get vertices, surface edges and surface props
+    V = []
+    E = []
+    S = []
+    for x in file2:
+        if x[0] == '*vertex':
+            V.append([float(y) for y in x[1].split(',')])
+        elif x[0] == '*edges':
+            dat = x[1].split(',', 1)  # sep. no. of edges from list of vertices
+            E.append([int(y) for y in dat[1].split(',')])
+        elif x[0] == '*surf':
+            S.append(x[1].split(','))
+
+    return name, desc, date, V, E, S
 
 
 def edit_material_prop(cfg_file, change_list):
