@@ -296,7 +296,7 @@ def gen_qa_report(cfg_file, filename):
     return prj
 
 
-def res_get(res_file, out_file, param_list, time_fmt):
+def res_get(cfg_file, res_file, out_file, param_list, time_fmt):
     res_dict = {
         # Climate
         'Ambient temperature': ['a', 'a'],
@@ -362,20 +362,82 @@ def res_get(res_file, out_file, param_list, time_fmt):
         'Aggregate humidification': ['h', 'k'],
     }
 
+    # Read cfg file for list of zones
+    cfg, date, paths, databases, ctl, year, zones = read_cfg(cfg_file)
+
+    # Loop through each zone file and get zone name
+    zone_names = []
+    for ind, x in enumerate(zones):
+        zone_names.append(read_geo(zones[ind][1]['geo'])[0])
+
     res_open = ['', 'c']
     time_dict = {'Julian': ['*', 'a'], 'DateTime': ['*', 'a', '*', 'a']}
     csv_open = ['>', out_file, 'desc'] + time_dict[time_fmt] + ['&', '^', 'e']
     perf_met = ['g']
 
     res_select = []
+    zone_select = []
     for i, item in enumerate(param_list):
-        # Select zones
-        if (item[0] == 'all'):
+        zone_input = item[0]
+        metric_input = item[1]
+        # ---------------------------------
+        # Select all zones
+        # ---------------------------------
+        if (zone_input == 'all'):
             res_select.append(['4', '*', '-'])
+        # ---------------------------------
+        # Multiple zone selections
+        # ---------------------------------
+        elif (isinstance(zone_input, list) and len(zone_input) > 1):
+            for j in zone_input:
+                # Selection by id:
+                if (j[:3] == 'id:'):
+                    selected_zone = j[3:]
+                    chr_zone = [
+                        chr(96 + ind + 1) for ind, x in enumerate(zone_names)
+                        if x == selected_zone
+                    ]
+                    # If exists select it, otherwise throw error
+                    if chr_zone:
+                        zone_select.append(chr_zone[0])
+                    else:
+                        print("zone selection error, '{}' not found".format(
+                            selected_zone))
+                # Assume direct letter selection of zones if len = 1
+                elif (len(j) == 1):
+                    zone_select.append(j[0])
+                else:
+                    print("zone selection error for '{}', check input format".
+                          format(j))
+            res_select.append(['4'] + zone_select + ['-'])
+        # ---------------------------------
+        # Single selection
+        # ---------------------------------
+        # From zone name
+        elif (zone_input[:3] == 'id:'):
+            selected_zone = zone_input[3:]
+            chr_zone = [
+                chr(96 + ind + 1) for ind, x in enumerate(zone_names)
+                if x == selected_zone
+            ]
+            # If exists select it, otherwise throw error
+            if chr_zone:
+                zone_select.append(chr_zone[0])
+                res_select.append(['4'] + zone_select + ['-'])
+            else:
+                print("zone selection error, '{}' not found".format(
+                    selected_zone))
+        # Assume single letter selection
+        elif (len(zone_input) == 1):
+            zone_select.append(zone_input[0])
+            res_select.append(['4'] + zone_select + ['-'])
         else:
-            res_select.append(['4'] + item[0] + ['-'])
+            print("zone selection error for '{}', check input format".format(
+                zone_input))
         # Select metric
-        res_select.append(res_dict[item[1]])
+        # If error in single selection, gets all zones (for now)
+        res_select.append(res_dict[metric_input])
+
     # Flatten list
     res_select = list(itertools.chain.from_iterable(res_select))
 
