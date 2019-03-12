@@ -3,6 +3,38 @@ import itertools
 from datetime import datetime
 from subprocess import PIPE, run
 
+import numpy as np
+
+
+def area(poly):
+    """area of polygon poly
+    Source: https://stackoverflow.com/a/12643315
+    Source 2: http://geomalgorithms.com/a01-_area.html#3D%20Polygons
+    """
+    def cross(a, b):
+        """cross product of vectors a and b."""
+        x = a[1] * b[2] - a[2] * b[1]
+        y = a[2] * b[0] - a[0] * b[2]
+        z = a[0] * b[1] - a[1] * b[0]
+        return (x, y, z)
+
+    if len(poly) < 3: # not a plane - no area
+        return 0
+
+    total = [0, 0, 0]
+    for i in range(len(poly)):
+        vi1 = poly[i]
+        if i is len(poly)-1:
+            vi2 = poly[0]
+        else:
+            vi2 = poly[i+1]
+        prod = cross(vi1, vi2)
+        total[0] += prod[0]
+        total[1] += prod[1]
+        total[2] += prod[2]
+    result = np.linalg.norm(total)
+    return abs(result/2)
+
 
 def _read_file(filepath):
     """
@@ -161,19 +193,36 @@ def read_geo(filepath):
             file2.append(file_split)
 
     # Scan through list and get vertices, surface edges and surface props
-    V = []
-    E = []
-    S = []
+    vertices = []
+    edges = []
+    props = []
     for x in file2:
         if x[0] == "*vertex":
-            V.append([float(y) for y in x[1].split(",")])
+            vertices.append([float(y) for y in x[1].split(",")])
         elif x[0] == "*edges":
             dat = x[1].split(",", 1)  # sep. no. of edges from list of vertices
-            E.append([int(y) for y in dat[1].split(",")])
+            edges.append([int(y) for y in dat[1].split(",")])
         elif x[0] == "*surf":
-            S.append(x[1].split(","))
+            props.append(x[1].split(","))
 
-    return name, desc, date, V, E, S
+    areas = []
+    for _, surface in enumerate(edges):
+        vertices_surf_i = []
+        # Get x,y,z for surface from vertex index
+        for vertex in surface:
+            vertices_surf_i.append(vertices[vertex-1])
+        areas.append(area(vertices_surf_i))
+        # print("{}: {:.3f} m^2".format(zone_info["props"][zone_id][0], area(vertices_surf_i)))
+
+    return {
+        "name": name,
+        "desc": desc,
+        "date": date,
+        "vertices": vertices,
+        "edges": edges,
+        "props": props,
+        "areas": areas,
+    }
 
 
 def edit_material_prop(cfg_file, change_list):
@@ -300,9 +349,8 @@ def edit_layer_thickness(cfg_file, change_list):
 
 
 def run_sim(
-        cfg_file, res_file, sim_start_d, sim_start_m, sim_end_d, sim_end_m,
-        start_up_d, tsph, integrate
-    ):
+    cfg_file, res_file, sim_start_d, sim_start_m, sim_end_d, sim_end_m, start_up_d, tsph, integrate
+):
     """Run basic simulation."""
     # Only designed to work for models without additional networks eg. massflow
     cmd = [
@@ -407,12 +455,13 @@ def res_get(cfg_file, res_file, out_file, param_list, time_fmt):
     }
 
     # Read cfg file for list of zones
-    cfg, date, paths, databases, ctl, year, zones = read_cfg(cfg_file)
+    _, _, _, _, _, _, zones = read_cfg(cfg_file)
 
     # Loop through each zone file and get zone name
     zone_names = []
-    for ind, x in enumerate(zones):
-        zone_names.append(read_geo(zones[ind][1]["geo"])[0])
+    for ind, _ in enumerate(zones):
+        file_path = zones[ind][1]["geo"]
+        zone_names.append(read_geo(file_path)["name"])
 
     res_open = ["", "c"]
     time_dict = {"Julian": ["*", "a"], "DateTime": ["*", "a", "*", "a"]}
@@ -421,7 +470,7 @@ def res_get(cfg_file, res_file, out_file, param_list, time_fmt):
 
     res_select = []
     zone_select = []
-    for i, item in enumerate(param_list):
+    for item in param_list:
         zone_input = item[0]
         metric_input = item[1]
         # ---------------------------------
