@@ -214,6 +214,27 @@ def read_geo(filepath):
         areas.append(area(vertices_surf_i))
         # print("{}: {:.3f} m^2".format(zone_info["props"][zone_id][0], area(vertices_surf_i)))
 
+    # get base area
+    base_list = [x for x in geo if x[0].split(",")[0] == "*base_list"][0]
+    # print(base_list)
+    # get base_list type
+    try:
+        bl_type = base_list[1].split(" ")[1]
+    except:
+        bl_type = base_list[0].split(",")[-1]
+
+    # base area via list
+    if bl_type == "2":
+        idx_surfaces = base_list[0].split(",")[2:-1]
+        area_base = 0
+        for surface in idx_surfaces:
+            area_base += areas[int(surface)-1]
+    # manual base area
+    elif bl_type == "0":
+        area_base = 1
+    else:
+        area_base = None
+
     return {
         "name": name,
         "desc": desc,
@@ -222,6 +243,7 @@ def read_geo(filepath):
         "edges": edges,
         "props": props,
         "areas": areas,
+        "area_base": area_base,
     }
 
 
