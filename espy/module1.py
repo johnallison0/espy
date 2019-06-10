@@ -218,6 +218,7 @@ def read_geo(filepath):
     base_list = [x for x in geo if x[0].split(",")[0] == "*base_list"][0]
     # print(base_list)
     # get base_list type
+    #TODO(j.allison): test length of base instead of try and except
     try:
         bl_type = base_list[1].split(" ")[1]
     except:
