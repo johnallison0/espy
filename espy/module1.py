@@ -1,5 +1,7 @@
 """Module with all functions."""
+import csv
 import itertools
+import os
 from datetime import datetime
 from subprocess import PIPE, run
 
@@ -599,3 +601,93 @@ def res_get(cfg_file, res_file, out_file, param_list, time_fmt):
         ["res", "-file", res_file, "-mode", "script"], stdout=PIPE, input=cmd, encoding="ascii"
     )
     return res
+
+
+def get_overheating_stats(res_file, out_file, query_point=25):
+    cmd = ["", "d", ">", "temp.csv", "", "^", "e", "c", "b", "a", "-", str(query_point), ">", "-", "-"]
+    cmd = "\n".join(cmd)
+    run(
+        ["res", "-file", res_file, "-mode", "script"], stdout=PIPE, input=cmd, encoding="ascii"
+    )
+
+    # Read in CSV output from ESP-r
+    data = []
+    header = 9
+    #TODO(j.allison): Get number of zones from cfg file
+    zones = 2
+    with open("temp.csv", "r") as file:
+        reader = csv.reader(file, delimiter=",")
+        line_count = 1
+        for row in reader:
+            if line_count < header:
+                # skipping header
+                line_count += 1
+            elif line_count >= header + zones:
+                break
+            else:
+                data.append(row)
+                line_count += 1
+
+    # remove temporary CSV file
+    os.remove("temp.csv")
+    
+    # Calculate total number of hours
+    total_hours = float(data[0][6]) + float(data[0][7])
+
+    # Calculate percentage of time above limit
+    # print(data)
+    overheating_frequency = []
+    for zone in data:
+        overheating_frequency.append([zone[0], round(float(zone[6])/total_hours*100,1)])
+
+    # print(".")
+    # Write back out to CSV that can be parsed by HighCharts
+    headers = ["Zone", "Overheating frequency"]
+    with open(out_file, "w", newline="") as write_file:
+        writer = csv.writer(write_file)
+        writer.writerow(headers)
+        for zone in overheating_frequency:
+            writer.writerow(zone)
+    return overheating_frequency
+
+
+def get_energy_balance(res_file, out_file=None):
+    cmd = ["", "d", ">", "temp.csv", "", "^", "e", "h", "b", "b", ">", "-", "-"]
+    cmd = "\n".join(cmd)
+    run(
+        ["res", "-file", res_file, "-mode", "script"], stdout=PIPE, input=cmd, encoding="ascii"
+    )
+
+    # Read CSV from ESP-r
+    data = []
+    #TODO(j.allison): Get number of zones from cfg file
+    zones = 2
+    for i in range(zones):
+        with open("temp.csv", "r") as file:
+            reader = csv.reader(file, delimiter=",")
+            data.append([row for idx, row in enumerate(reader) if idx in range(19*i+6, 19*i+21)])
+
+    # remove temporary CSV file
+    os.remove("temp.csv")
+
+    # Restructure data for HighCharts
+    headers = ["Stack"] + [x[0].strip() for x in data[0]]
+    zone_gains = []
+    zone_losses = []
+    for zone in data:
+        zone_gains.append([float(x[1]) for x in zone])
+        zone_losses.append([float(x[2]) for x in zone])
+
+    # Add across all zones
+    total_gains = ["Gain"] + [round(sum(x), 1) for x in zip(*zone_gains)]
+    total_losses = ["Loss"] + [abs(round(sum(x), 1)) for x in zip(*zone_losses)]
+
+    # Export to HighCharts CSV format
+    if out_file != None:
+        with open(out_file, "w", newline="") as write_file:
+            writer = csv.writer(write_file)
+            writer.writerow(headers[0:-1])
+            writer.writerow(total_gains[0:-1])
+            writer.writerow(total_losses[0:-1])
+
+    return [headers[1:], total_gains[1:], total_losses[1:]]
