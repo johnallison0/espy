@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 
-from espy.module1 import read_geo
+from espy import get
 
 
 def set_axes_equal(ax):
@@ -149,7 +149,7 @@ def plot_zone_surface(vertices, ax=None, facecolour=None, alpha=0.2):
 
 def plot_zone(geo_file, ax=None, show_roof=True):
     """Plot zone from surfaces."""
-    geo = read_geo(geo_file)
+    geo = get.geometry(geo_file)
     vertices = geo["vertices"]
     edges = geo["edges"]
 
