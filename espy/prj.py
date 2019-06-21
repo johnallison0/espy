@@ -133,3 +133,11 @@ def gen_qa_report(cfg_file, filename):
         ["prj", "-file", cfg_file, "-mode", "script"], stdout=PIPE, input=cmd, encoding="ascii"
     )
     return prj
+
+
+def rebuild_con_files(cfg_file):
+    """Updates the zone construction files."""
+    prj = run(
+        ["prj", "-file", cfg_file, "-act", "update_zone_con", "-mode", "script"], stdout=PIPE
+    )
+    return prj

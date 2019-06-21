@@ -194,7 +194,7 @@ def time_series(cfg_file, res_file, param_list, flow_file=None, out_file=None, t
                 if line_count < header_lines:
                     newrow = row
                 elif line_count == header_lines:
-                    newrow = ["Time", "Zone_1ppm", "Zone_2ppm", "Zone_3ppm", "Zone_4ppm", "Zone_5ppm", "Zone_7ppm", "Zone_47ppm", "Zone_45ppm", "Zone_49ppm", "Zone_10ppm"]
+                    newrow = ["Time", "liv_kit(ppm)", "hall_gnd(ppm)", "wc(ppm)", "bathroom(ppm)", "cupboard(ppm)", "bedroom1(ppm)", "hall_upr(ppm)", "bedroom2(ppm)", "bedroom3(ppm)", "roof(ppm)"]
                 else:
                     # Scale from g/kg to ppm
                     newrow = [row[0]] + [round(1000*float(x), 4) for x in row[1:]]
