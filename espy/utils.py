@@ -6,6 +6,11 @@ from shutil import move
 from tempfile import mkstemp
 
 
+def split_to_float(string):
+    """Transform CSV string into list of floats."""
+    return [float(x) for x in string.split(",")]
+
+
 def sed(pattern, replace, source, dest=None, count=0):
     """Reads a source file and writes the destination file.
 

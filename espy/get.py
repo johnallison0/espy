@@ -1,6 +1,10 @@
 """Functions for importing and reading ESP-r files"""
 from datetime import datetime
+from itertools import accumulate
+
 import numpy as np
+
+from espy.utils import split_to_float
 
 # pylint: disable-msg=C0103
 
@@ -246,3 +250,59 @@ def geometry(filepath):
         "areas": areas,
         "area_base": area_base,
     }
+
+
+def constructions(con_file, geo_file):
+    """Get data from construction file."""
+
+    geo_data = geometry(geo_file)
+    con_data = _read_file(con_file)
+
+    # Number of surfaces in zone
+    n_cons = len(geo_data["edges"])
+
+    # Get number of layers and air gaps in each construction
+    n_layers_con = []
+    for i in range(n_cons):
+        n_layers_con.append([int(con_data[i][0].split(",")[0])] + [int(con_data[i][1])])
+    total_layers = sum([x[0] for x in n_layers_con])
+
+    # The start of the construction data is dependent on the number of air gaps in the zone
+    # i.e. n_surfaces + n_airgaps = start index of construction layers
+    n_air_gaps = sum([x[1] for x in n_layers_con])
+
+    # Get air gap data
+    air_gap_props = []
+    for i in range(n_cons, n_cons + n_air_gaps):
+        air_gap_props.append(
+            [int(con_data[i][0].split(",")[0])] + [float(con_data[i][1].split(",")[0])]
+        )
+
+    # Read all layers
+    layer_therm_props_all = []
+    for i in range(n_cons + n_air_gaps, n_cons + n_air_gaps + total_layers):
+        layer_therm_props_all.append(
+            [float(con_data[i][0].split(",")[0])]
+            # + [float(x) for x in con_data[i][1].split(",")]
+            + split_to_float(con_data[i][1])
+        )
+
+    nidx = list(accumulate([x[0] for x in n_layers_con]))
+    layer_therm_props = [layer_therm_props_all[: nidx[0]]]  # first con
+    # Rest of cons
+    for i in range(n_cons - 1):
+        layer_therm_props.append(layer_therm_props_all[nidx[i] : nidx[i + 1]])
+
+    # Read emissivities
+    emissivity_inside = split_to_float(con_data[n_cons + n_air_gaps + total_layers][0])
+    emissivity_outside = split_to_float(con_data[n_cons + n_air_gaps + total_layers + 1][0])
+
+    # Read absorptivities
+    absorptivity_inside = split_to_float(
+        con_data[n_cons + n_air_gaps + total_layers + 2][0]
+    )
+    absorptivity_outside = split_to_float(
+        con_data[n_cons + n_air_gaps + total_layers + 3][0]
+    )
+
+    return n_layers_con, air_gap_props, layer_therm_props, emissivity_inside, emissivity_outside, absorptivity_inside, absorptivity_outside
