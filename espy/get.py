@@ -27,7 +27,7 @@ def area(poly):
         return 0
 
     total = [0, 0, 0]
-    for i in range(len(poly)):
+    for i, _ in enumerate(poly):
         vi1 = poly[i]
         if i is len(poly) - 1:
             vi2 = poly[0]
@@ -39,6 +39,7 @@ def area(poly):
         total[2] += prod[2]
     result = np.linalg.norm(total)
     return abs(result / 2)
+
 
 def _read_file(filepath):
     """
@@ -269,18 +270,18 @@ def constructions(con_file, geo_file):
 
     # The start of the construction data is dependent on the number of air gaps in the zone
     # i.e. n_surfaces + n_airgaps = start index of construction layers
-    n_air_gaps = sum([x[1] for x in n_layers_con])
+    n_con_air_gaps = sum([1 if x[1] > 0 else 0 for x in n_layers_con])
 
-    # Get air gap data
+    # Get air gap data (these can be of varying length)
     air_gap_props = []
-    for i in range(n_cons, n_cons + n_air_gaps):
+    for i in range(n_cons, n_cons + n_con_air_gaps):
         air_gap_props.append(
-            [int(con_data[i][0].split(",")[0])] + [float(con_data[i][1].split(",")[0])]
+            [int(con_data[i][0].split(",")[0])] + split_to_float(con_data[i][1][:-1])
         )
 
     # Read all layers
     layer_therm_props_all = []
-    for i in range(n_cons + n_air_gaps, n_cons + n_air_gaps + total_layers):
+    for i in range(n_cons + n_con_air_gaps, n_cons + n_con_air_gaps + total_layers):
         layer_therm_props_all.append(
             [float(con_data[i][0].split(",")[0])]
             # + [float(x) for x in con_data[i][1].split(",")]
@@ -294,15 +295,19 @@ def constructions(con_file, geo_file):
         layer_therm_props.append(layer_therm_props_all[nidx[i] : nidx[i + 1]])
 
     # Read emissivities
-    emissivity_inside = split_to_float(con_data[n_cons + n_air_gaps + total_layers][0])
-    emissivity_outside = split_to_float(con_data[n_cons + n_air_gaps + total_layers + 1][0])
+    emissivity_inside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers][0])
+    emissivity_outside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers + 1][0])
 
     # Read absorptivities
-    absorptivity_inside = split_to_float(
-        con_data[n_cons + n_air_gaps + total_layers + 2][0]
-    )
-    absorptivity_outside = split_to_float(
-        con_data[n_cons + n_air_gaps + total_layers + 3][0]
-    )
+    absorptivity_inside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers + 2][0])
+    absorptivity_outside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers + 3][0])
 
-    return n_layers_con, air_gap_props, layer_therm_props, emissivity_inside, emissivity_outside, absorptivity_inside, absorptivity_outside
+    return (
+        n_layers_con,
+        air_gap_props,
+        layer_therm_props,
+        emissivity_inside,
+        emissivity_outside,
+        absorptivity_inside,
+        absorptivity_outside,
+    )

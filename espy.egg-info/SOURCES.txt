@@ -1,8 +1,12 @@
 README.md
 setup.py
 espy/__init__.py
-espy/module1.py
+espy/bps.py
+espy/edit.py
+espy/get.py
 espy/plot.py
+espy/prj.py
+espy/res.py
 espy/utils.py
 espy/version.py
 espy.egg-info/PKG-INFO
