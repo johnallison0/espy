@@ -9,6 +9,24 @@ from espy.utils import split_to_float
 # pylint: disable-msg=C0103
 
 
+def calculate_normal(p):
+    """
+    Newell's method for calculating the normal of an arbitrary 3D polygon.
+    """
+    normal = [0, 0, 0]
+    for i, _ in enumerate(p):
+        j = (i + 1) % len(p)
+        normal[0] += (p[i][1] - p[j][1]) * (p[i][2] + p[j][2])
+        normal[1] += (p[i][2] - p[j][2]) * (p[i][0] + p[j][0])
+        normal[2] += (p[i][0] - p[j][0]) * (p[i][1] + p[j][1])
+    # normalise
+    nn = [0, 0, 0]
+    nn[0] = normal[0]/(abs(normal[0])+abs(normal[1])+abs(normal[2]))
+    nn[1] = normal[1]/(abs(normal[0])+abs(normal[1])+abs(normal[2]))
+    nn[2] = normal[2]/(abs(normal[0])+abs(normal[1])+abs(normal[2]))
+    return nn
+
+
 def area(poly):
     """area of polygon poly
     Source: https://stackoverflow.com/a/12643315

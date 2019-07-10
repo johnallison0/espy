@@ -194,3 +194,51 @@ def plot_zone(geo_file, ax=None, show_roof=True):
             else:
                 # Transparent surfaces
                 plot_zone_surface(vs, ax=ax, facecolour="#008db0")
+
+
+def plot_construction(con_data, vertices_surf, ax=None):
+    con_data.reverse()
+    thickness = [x[3] for x in con_data]
+    normal = get.calculate_normal(vertices_surf)
+    start = 0
+    for i, _ in enumerate(con_data):
+        a4 = vertices_surf + [vertices_surf[0]]
+        
+        X = [
+            # [v[0] for v in a1],
+            # [v[0] for v in a2],
+            [v[0]+(start+thickness[i])*normal[0] for v in a4],
+            [v[0]+start*normal[0] for v in a4],
+        ]
+
+        Y = [
+            # [v[1] for v in a1],
+            # [v[1] for v in a2],
+            [v[1]+(start+thickness[i])*normal[1] for v in a4],
+            [v[1]+start*normal[1] for v in a4],
+        ]
+
+        Z = [
+            # [v[2] for v in a1],
+            # [v[2] for v in a2],
+            [v[2]+(start+thickness[i])*normal[2] for v in a4],
+            [v[2]+start*normal[2] for v in a4],
+        ]
+
+        ax.plot_surface(np.array(X), np.array(Y), np.array(Z), rstride=1, cstride=1)
+
+        start += thickness[i]
+
+
+def plot_zone_constructions(con_file, geo_file, ax=None):
+    zone_geometry = get.geometry(geo_file)
+    _, _, layer_therm_props, _, _, _, _ = get.constructions(con_file, geo_file)
+
+    for i, _ in enumerate(zone_geometry["edges"]):
+        con_data = layer_therm_props[i]
+        surface = zone_geometry["edges"][i]
+        # map vertex indices in edges list to x,y,z vertices
+        vertices_surf_i = []
+        for vertex in surface:
+            vertices_surf_i.append(zone_geometry["vertices"][vertex - 1])
+        plot_construction(con_data, vertices_surf_i, ax=ax)
