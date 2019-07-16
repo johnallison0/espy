@@ -329,3 +329,15 @@ def constructions(con_file, geo_file):
         absorptivity_inside,
         absorptivity_outside,
     )
+
+
+def pos_from_vert_num_list(vertices_zone, edges):
+    """
+    Get x,y,z position of vertices that comprise a surface
+    from the zone vertices and their indices as defined in
+    the edges list
+    """
+    vertices_surf = []
+    for vertex in edges:
+        vertices_surf.append(vertices_zone[vertex - 1])
+    return vertices_surf

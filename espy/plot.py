@@ -242,3 +242,85 @@ def plot_zone_constructions(con_file, geo_file, ax=None):
         for vertex in surface:
             vertices_surf_i.append(zone_geometry["vertices"][vertex - 1])
         plot_construction(con_data, vertices_surf_i, ax=ax)
+
+
+def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=True):
+    """Plot generic 3D building component.
+
+    This function plots a 3D building component (wall, floor, roof etc.)
+    from its surface geometry and construction data.
+
+    The inside surface is plotted as white, while the external surface colour
+    is dependent on the surface properties from the geometry file.
+
+    vertices    list of x,y,z position vertices of the inside (zone-facing) surface
+    """
+
+    # TODO(j.allison): Create new figure and axes if none are provided
+
+    # Read geometry file
+    zone_geometry = get.geometry(geo_file)
+    surface_props = zone_geometry["props"][idx_surface]
+
+    # Get vertex numbers that comprise surface
+    surface_edges = zone_geometry["edges"][idx_surface]
+
+    # Get vertex positions that comprise surface
+    vertices_surf = get.pos_from_vert_num_list(zone_geometry["vertices"], surface_edges)
+
+    # Plot inside (zone-facing) surface
+    if (surface_props[1] == "CEIL" or surface_props[1] == "SLOP") and not show_roof:
+        pass
+    else:
+        if surface_props[6] == "OPAQUE":
+            plot_zone_surface(vertices_surf, ax=ax, facecolour="w", alpha=None)
+        else:
+            plot_zone_surface(vertices_surf, ax=ax, facecolour="#008db0")
+
+    # Plot construction layers
+    _, _, layer_therm_props, _, _, _, _ = get.constructions(con_file, geo_file)
+    con_data = layer_therm_props[idx_surface]
+    if (surface_props[1] == "CEIL" or surface_props[1] == "SLOP") and not show_roof:
+        pass
+    else:
+        plot_construction(con_data, vertices_surf, ax=ax)
+
+    # -------------------------------------
+    # Plot outer surface
+    # -------------------------------------
+    normal = get.calculate_normal(vertices_surf)
+    # vertices_surf += [vertices_surf[0]]
+    total_thickness = sum([x[3] for x in con_data])
+    # Extend vertex position along surface normal by the total thickness
+    x_pos = [v[0]+total_thickness*normal[0] for v in vertices_surf]
+    y_pos = [v[1]+total_thickness*normal[1] for v in vertices_surf]
+    z_pos = [v[2]+total_thickness*normal[2] for v in vertices_surf]
+    # Restructure to surface vertices
+    # Can probably do this in a zip list comprehension...
+    vertices_surf_outer = []
+    for i, _ in enumerate(vertices_surf):
+        vertices_surf_outer.append([x_pos[i], y_pos[i], z_pos[i]])
+    if (surface_props[1] == "CEIL" or surface_props[1] == "SLOP") and not show_roof:
+        pass
+    else:
+        if surface_props[6] == "OPAQUE" and surface_props[7] == "EXTERIOR":
+            if "DOOR" in surface_props[3] or "FRAME" in surface_props[3]:
+                # door or frame
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#c19a6b", alpha=None)
+            else:
+                # default grey surface
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#afacac", alpha=None)
+        elif surface_props[6] == "OPAQUE" and surface_props[7] == "ANOTHER":
+            if "DOOR" in surface_props[3]:
+                # door
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#f5f2d0", alpha=None)
+            else:
+                # default 25% lighter surface
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#ffffff", alpha=None)
+        elif surface_props[6] == "OPAQUE" and surface_props[7] == "SIMILAR":
+            plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#d8e4bc", alpha=None)
+        elif surface_props[6] == "OPAQUE" and surface_props[7] == "GROUND":
+            plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#654321", alpha=None)
+        else:
+            # Transparent surfaces
+            plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#008db0")
