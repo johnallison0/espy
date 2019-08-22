@@ -1,12 +1,5 @@
-<<<<<<< HEAD
 {
-    "cSpell.ignoreWords": [
-        "itertools",
-        "numpy"
-    ],
-    "cSpell.enabled": false
-=======
-{
-    "python.pythonPath": "C:\\Users\\johna\\Anaconda3\\python.exe"
->>>>>>> 36945ab2eb3a9b109812b2bcba3d9b0f5616347d
+    "python.pythonPath": "C:\\Users\\lau05219\\AppData\\Local\\Continuum\\anaconda3\\python.exe",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }

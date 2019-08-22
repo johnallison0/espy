@@ -339,4 +339,4 @@ def energy_balance(cfg_file, res_file, out_file=None):
             writer.writerow(total_gains[0:-1])
             writer.writerow(total_losses[0:-1])
 
-    return [headers[1:], total_gains[1:], total_losses[1:]]
+    return [headers[1:], total_gains[1:], total_losses[1:], zone_gains, zone_losses]
