@@ -11,6 +11,17 @@ def split_to_float(string):
     return [float(x) for x in string.split(",")]
 
 
+def space_data_to_list(item, convert="int"):
+    """Transform space separated data into specified type list"""
+    if convert == "int":
+        y = [int(item[0])] + [int(x) for x in item[1].split(" ") if x is not ""]
+    elif convert == "float":
+        y = [float(item[0])] + [float(x) for x in item[1].split(" ") if x is not ""]
+    else:
+        "Unrecognised convert type."
+    return y
+
+
 def sed(pattern, replace, source, dest=None, count=0):
     """Reads a source file and writes the destination file.
 
