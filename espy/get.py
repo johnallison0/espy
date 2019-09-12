@@ -2,11 +2,12 @@
 from collections import Counter
 from datetime import datetime
 from itertools import accumulate
+import math
 
 import numpy as np
 import vtk
 
-from espy.utils import split_to_float
+from espy.utils import split_to_float, space_data_to_list
 
 # pylint: disable-msg=C0103
 # pylint: disable=no-member
@@ -44,7 +45,7 @@ def vtk_view(actors, edge_actors, outlines):
     renderWindowInteractor.Start()
 
 
-def generate_vtk_actors(surf_obj, outer_colour):
+def generate_vtk_actors(surf_obj, outer_colour, show_edges=False, show_outline=True):
     """Generates 3 VTK actors.
 
     Returns 3 VTK actors, which represents an object (geometry & properties) in a rendered scene
@@ -85,39 +86,45 @@ def generate_vtk_actors(surf_obj, outer_colour):
     surface_actor.GetProperty().SetSpecular(0.0)
 
     # Define format of mesh
-    tubes = vtk.vtkTubeFilter()
-    tubes.SetInputConnection(extract.GetOutputPort())
-    tubes.SetRadius(0.02)
-    tubes.SetNumberOfSides(6)
-    mapEdges = vtk.vtkPolyDataMapper()
-    mapEdges.SetInputConnection(tubes.GetOutputPort())
-    edge_actor = vtk.vtkActor()
-    edge_actor.SetMapper(mapEdges)
-    edge_actor.GetProperty().SetColor(0, 0.643, 0.706)
-    edge_actor.GetProperty().SetSpecularColor(1, 1, 1)
-    edge_actor.GetProperty().SetSpecular(0.3)
-    edge_actor.GetProperty().SetSpecularPower(20)
-    edge_actor.GetProperty().SetAmbient(0.2)
-    edge_actor.GetProperty().SetDiffuse(0.8)
+    if show_edges:
+        tubes = vtk.vtkTubeFilter()
+        tubes.SetInputConnection(extract.GetOutputPort())
+        tubes.SetRadius(0.02)
+        tubes.SetNumberOfSides(6)
+        mapEdges = vtk.vtkPolyDataMapper()
+        mapEdges.SetInputConnection(tubes.GetOutputPort())
+        edge_actor = vtk.vtkActor()
+        edge_actor.SetMapper(mapEdges)
+        edge_actor.GetProperty().SetColor(0, 0.643, 0.706)
+        edge_actor.GetProperty().SetSpecularColor(1, 1, 1)
+        edge_actor.GetProperty().SetSpecular(0.3)
+        edge_actor.GetProperty().SetSpecularPower(20)
+        edge_actor.GetProperty().SetAmbient(0.2)
+        edge_actor.GetProperty().SetDiffuse(0.8)
+    else:
+        edge_actor = None
 
     # Define format of outline
-    outline.SetFeatureEdges(False)
-    # ManifoldEdgesOff, NonManifoldEdgesOff, BoundaryEdgesOn
-    outline.ColoringOff()
-    outline_tubes = vtk.vtkTubeFilter()
-    outline_tubes.SetInputConnection(outline.GetOutputPort())
-    outline_tubes.SetRadius(0.02)
-    outline_tubes.SetNumberOfSides(6)
-    outline_mapEdges = vtk.vtkPolyDataMapper()
-    outline_mapEdges.SetInputConnection(outline_tubes.GetOutputPort())
-    outline_actor = vtk.vtkActor()
-    outline_actor.SetMapper(outline_mapEdges)
-    outline_actor.GetProperty().SetColor(0, 0, 0)
-    outline_actor.GetProperty().SetSpecularColor(1, 1, 1)
-    outline_actor.GetProperty().SetSpecular(0.3)
-    outline_actor.GetProperty().SetSpecularPower(20)
-    outline_actor.GetProperty().SetAmbient(0.2)
-    outline_actor.GetProperty().SetDiffuse(0.8)
+    if show_outline:
+        outline.SetFeatureEdges(False)
+        # ManifoldEdgesOff, NonManifoldEdgesOff, BoundaryEdgesOn
+        outline.ColoringOff()
+        outline_tubes = vtk.vtkTubeFilter()
+        outline_tubes.SetInputConnection(outline.GetOutputPort())
+        outline_tubes.SetRadius(0.02)
+        outline_tubes.SetNumberOfSides(6)
+        outline_mapEdges = vtk.vtkPolyDataMapper()
+        outline_mapEdges.SetInputConnection(outline_tubes.GetOutputPort())
+        outline_actor = vtk.vtkActor()
+        outline_actor.SetMapper(outline_mapEdges)
+        outline_actor.GetProperty().SetColor(0, 0, 0)
+        outline_actor.GetProperty().SetSpecularColor(1, 1, 1)
+        outline_actor.GetProperty().SetSpecular(0.3)
+        outline_actor.GetProperty().SetSpecularPower(20)
+        outline_actor.GetProperty().SetAmbient(0.2)
+        outline_actor.GetProperty().SetDiffuse(0.8)
+    else:
+        outline_actor = None
 
     return surface_actor, edge_actor, outline_actor
 
@@ -181,16 +188,27 @@ class Component:
             # Assume surface is a 'weakly simple polygon' due to duplicate vertices
             # get indices of duplicates [O(n^2) solution...]
             d = [i for i, x in enumerate(self.vertices_surf) if self.vertices_surf.count(x) > 1]
-            # split into 2 polygons
-            vertices_surf_outer = self.vertices_surf[: d[1]] + self.vertices_surf[d[3] + 1 :]
-            vertices_surf_inner = self.vertices_surf[d[1] : d[2]]
+            # print(d)
+            # split into 2 polygons (or len(d)/4 polygons...)
+            # vertices_surf_outer = self.vertices_surf[: d[1]] + self.vertices_surf[d[3] + 1 :]
+            vertices_surf_outer = self.vertices_surf[: d[0] + 1] + self.vertices_surf[d[-1] + 1 :]
+            # vertices_surf_inner = self.vertices_surf[d[1] : d[2]]
+            vertices_surf_inner = self.vertices_surf[d[1] : d[2] + 1] + [self.vertices_surf[d[6] - 1]]
+            vertices_surf_inner2 = self.vertices_surf[d[3] : d[4]]
+            print(vertices_surf_outer)
+            print(vertices_surf_inner)
 
             # Figure out if surface is reversed
             # If the normal of the outer polygon points in a negative direction
             # then the polygons need to be reversed to draw in the correct order
+            # print(self.name)
+            print(calculate_normal(vertices_surf_outer))
+            print(calculate_normal(vertices_surf_inner))
+            print(calculate_normal(vertices_surf_inner2))
             if any(t < 0 for t in calculate_normal(vertices_surf_outer)):
                 vertices_surf_outer.reverse()
                 vertices_surf_inner.reverse()
+                vertices_surf_inner2.reverse()
 
             # Setup points
             points = vtk.vtkPoints()
@@ -198,6 +216,8 @@ class Component:
                 points.InsertPoint(i, vertex[0], vertex[1], vertex[2])
             for i, vertex in enumerate(vertices_surf_inner):
                 points.InsertPoint(i + len(vertices_surf_outer), vertex[0], vertex[1], vertex[2])
+            for i, vertex in enumerate(vertices_surf_inner2):
+                points.InsertPoint(i + len(vertices_surf_outer) + len(vertices_surf_inner), vertex[0], vertex[1], vertex[2])
 
             # Setup polygons
             polys = vtk.vtkCellArray()
@@ -207,6 +227,9 @@ class Component:
             polys.InsertNextCell(len(vertices_surf_inner))
             for i, vertex in enumerate(vertices_surf_inner):
                 polys.InsertCellPoint(i + len(vertices_surf_outer))
+            polys.InsertNextCell(len(vertices_surf_inner2))
+            for i, vertex in enumerate(vertices_surf_inner2):
+                polys.InsertCellPoint(i + len(vertices_surf_outer) + len(vertices_surf_inner))
 
             polyData = vtk.vtkPolyData()
             polyData.SetPoints(points)
@@ -242,12 +265,23 @@ class Component:
         default_colours = {
             "OPAQUE_ANOTHER": ["#F8F4FF", 1],
             "OPAQUE_ANOTHER_DOOR": ["#f5f2d0", 1],
+            "OPAQUE_ANOTHER_PARTN": ["#F8F4FF", 1],
+            "OPAQUE_ANOTHER_GRILL": ["#c19a6b", 1],
             "OPAQUE_EXTERIOR": ["#afacac", 1],
+            "OPAQUE_EXTERIOR_WALL": ["#afacac", 1],
+            "OPAQUE_EXTERIOR_ROOF": ["#afacac", 1],
             "OPAQUE_EXTERIOR_DOOR": ["#c19a6b", 1],
             "OPAQUE_EXTERIOR_FRAME": ["#c19a6b", 1],
+            "OPAQUE_EXTERIOR_GRILL": ["#c19a6b", 1],
             "TRANSP_EXTERIOR_WINDOW": ["#008db0", 0.2],
             "OPAQUE_GROUND": ["#654321", 1],
             "OPAQUE_SIMILAR": ["#d8e4bc", 1],
+            "OPAQUE_SIMILAR_DOOR": ["#f5f2d0", 1],
+            "OPAQUE_SIMILAR_GRILL": ["#c19a6b", 1],
+            "OPAQUE_SIMILAR_PARTN": ["#d8e4bc", 1],
+            "TRANSP_SIMILAR": [" #0000FF", 0.2],
+            "TRANSP_ANOTHER_FICT": [" #0000FF", 0.2],
+            "TRANSP_ANOTHER_WINDOW": [" #008db0", 0.2],
         }
 
         # Get optical _type_
@@ -298,9 +332,9 @@ def calculate_normal(p):
         normal[2] += (p[i][0] - p[j][0]) * (p[i][1] + p[j][1])
     # normalise
     nn = [0, 0, 0]
-    nn[0] = normal[0] / (abs(normal[0]) + abs(normal[1]) + abs(normal[2]))
-    nn[1] = normal[1] / (abs(normal[0]) + abs(normal[1]) + abs(normal[2]))
-    nn[2] = normal[2] / (abs(normal[0]) + abs(normal[1]) + abs(normal[2]))
+    nn[0] = normal[0] / math.sqrt((normal[0])**2 + (normal[1])**2 + (normal[2])**2)
+    nn[1] = normal[1] / math.sqrt((normal[0])**2 + (normal[1])**2 + (normal[2])**2)
+    nn[2] = normal[2] / math.sqrt((normal[0])**2 + (normal[1])**2 + (normal[2])**2)
     return nn
 
 
@@ -605,6 +639,63 @@ def constructions(con_file, geo_file):
         absorptivity_inside,
         absorptivity_outside,
     )
+
+
+def controls(filepath):
+    """Import model controls."""
+    ctl = _read_file(filepath)
+    description_overall = " ".join(ctl[0])
+    ctl_type = ctl[1][1]
+    sensors, actuators, daytypes, ctl_data, start_times, laws, valid, periods = ([] for i in range(8))
+    if ctl_type == "Building":
+        description_zone = " ".join(ctl[2])
+        n_ctl = int(ctl[3][0])
+        idx = 4  # start of Control function 1
+        for i_ctl in range(n_ctl):
+            ctl_data.append([])
+            start_times.append([])
+            laws.append([])
+            valid.append([])
+            periods.append([])
+            sensors.append(space_data_to_list(ctl[idx + 1]))
+            actuators.append(space_data_to_list(ctl[idx + 2]))
+            i_daytypes = int(ctl[idx + 3][0])
+            if i_daytypes == 0:
+                i_daytypes = 4  # calendar daytypes
+            daytypes.append(i_daytypes)
+            for i_daytype in range(daytypes[i_ctl]):
+                ctl_data[i_ctl].append([])
+                start_times[i_ctl].append([])
+                laws[i_ctl].append([])
+                valid[i_ctl].append([int(x) for x in ctl[idx + 4]])
+                periods[i_ctl].append(int(ctl[idx + 5][0]))
+                for _ in range(periods[i_ctl][i_daytype]):
+                    # n_type = int(ctl[10][0])  # unknown use for type
+                    laws[i_ctl][i_daytype].append(int(ctl[idx + 6][1].split(" ")[0]))
+                    start_times[i_ctl][i_daytype].append(float(ctl[idx + 6][1].split(" ")[-1]))
+                    n_items = int(float(ctl[idx + 7][0]))
+                    if n_items > 0:
+                        ctl_data[i_ctl][i_daytype].append(space_data_to_list(ctl[idx + 8], "float"))
+                        idx += 3  # 3 data rows per period
+                    else:
+                        ctl_data[i_ctl][i_daytype].append(None)
+                        idx += 2  # 2 raws when no data items
+                idx += 2
+            idx += 4
+        links = ctl[-1]
+    return {
+        "description_overall": description_overall,
+        "description_zone": description_zone,
+        "sensors": sensors,
+        "actuators": actuators,
+        "daytypes": daytypes,
+        "ctl_data": ctl_data,
+        "start_times": start_times,
+        "laws": laws,
+        "valid": valid,
+        "periods": periods,
+        "links": links,
+    } 
 
 
 def pos_from_vert_num_list(vertices_zone, edges):
