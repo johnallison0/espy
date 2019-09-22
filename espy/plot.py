@@ -5,6 +5,7 @@ Created on Tue May 14 13:10:01 2019
 @author: lau05219
 """
 
+import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
@@ -152,11 +153,9 @@ def plot_zone(geo_file, ax=None, show_roof=True):
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    ax.set_aspect('equal')         # important!
-
-    espy.plot_zone(...)
-
-    set_axes_equal(ax)             # important!
+    ax.set_aspect('equal')
+    plot.plot_zone(geo_file, ax=ax)
+    plot.set_axes_equal(ax)
     plt.show()
 
     """
@@ -169,13 +168,12 @@ def plot_zone(geo_file, ax=None, show_roof=True):
         vs = []
         for vertex in surface:
             vs.append(vertices[vertex - 1])
-        # Plot surface from vertex coordinates
+        # Plot surface from vertex coordinates)
         if (geo["props"][i][1] == "CEIL" or geo["props"][i][1] == "SLOP") and not show_roof:
             print("not showing roof")
         else:
             if geo["props"][i][6] == "OPAQUE" and geo["props"][i][7] == "EXTERIOR":
                 if "DOOR" in geo["props"][i][3] or "FRAME" in geo["props"][i][3]:
-                    # door or frame
                     plot_zone_surface(vs, ax=ax, facecolour="#c19a6b", alpha=None)
                 else:
                     # default grey surface
@@ -231,9 +229,54 @@ def plot_construction(con_data, vertices_surf, ax=None):
         start += thickness[i]
 
 
+def construction_schematics(con_file, geo_file):
+    """Plot 2D construction schematic."""
+    # TODO(j.allison): increase plot size so that the layers are clear
+    # TODO(j.allison): colour layers according to material type.
+    #     This will be hard as the material name is not stored in any model file.
+    #     Will have to look up the construction in the constr.db and extract the 
+    #     names. With the name extracted, will then have to look up the category
+    #     in the material.db.
+    geo = get.geometry(geo_file)
+    con = get.constructions(con_file, geo_file)
+    con_names = [x[5] for x in geo["props"]]
+    unique_cons = list(sorted(set(con_names)))
+    for constr in unique_cons:
+        loc_con = con_names.index(constr)
+        con_data_i = con["layer_therm_props"][loc_con]
+        air_gap_props_i = con["air_gap_props"][loc_con]
+        if air_gap_props_i is not None:
+            idx_air_gaps_i = air_gap_props_i[0::2]
+        else:
+            idx_air_gaps_i = []
+        dx = [0] + [x[3] for x in con_data_i]
+        x_dat = [x*1000 for x in list(itertools.accumulate(dx))]
+
+        # plt.style.use('grayscale')
+        _, ax = plt.subplots()
+        ax.vlines(x_dat, 0, 1000)
+        for i, _ in enumerate(x_dat[0:-1]):
+            layer = i + 1
+            ax.text(x_dat[i], 1000, layer)
+            if layer in idx_air_gaps_i:
+                continue
+            else:
+                ax.fill_betweenx((0, 1000), x_dat[i], x_dat[i + 1], alpha=0.4, color="grey")
+        ax.set_aspect("equal")
+        ax.set_xticks([0, max(x_dat)])
+        ax.set_xlim(0, max(x_dat))
+        ax.set_ylim(0, 1100)
+        ax.yaxis.set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.set_title(constr)
+
+
 def plot_zone_constructions(con_file, geo_file, ax=None):
     zone_geometry = get.geometry(geo_file)
-    _, _, layer_therm_props, _, _, _, _ = get.constructions(con_file, geo_file)
+    con = get.constructions(con_file, geo_file)
+    layer_therm_props = con["layer_therm_props"]
 
     for i, _ in enumerate(zone_geometry["edges"]):
         con_data = layer_therm_props[i]
@@ -279,7 +322,8 @@ def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=
             plot_zone_surface(vertices_surf, ax=ax, facecolour="#008db0")
 
     # Plot construction layers
-    _, _, layer_therm_props, _, _, _, _ = get.constructions(con_file, geo_file)
+    con = get.constructions(con_file, geo_file)
+    layer_therm_props = con["layer_therm_props"]
     con_data = layer_therm_props[idx_surface]
     if (surface_props[1] == "CEIL" or surface_props[1] == "SLOP") and not show_roof:
         pass
