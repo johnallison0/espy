@@ -110,9 +110,13 @@ def plot_predef_ents(vis, vertices):
     fig = plt.figure()
     axis = fig.gca(projection="3d")
     axis.set_aspect("equal")
-    for i, ent in enumerate(vis):
+
+    for ent in vis:
         plot_cuboid(pos=ent[0:3], size=ent[3:6], ax=axis, color="crimson", alpha=0.2)
-        plot_zone_surface(vertices[i], ax=axis)
+
+    for vertices_i in vertices:
+        plot_zone_surface(vertices_i, ax=axis)
+
     set_axes_equal(axis)
     plt.axis("off")
     plt.grid(b=None)
