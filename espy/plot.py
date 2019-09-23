@@ -5,6 +5,7 @@ Created on Tue May 14 13:10:01 2019
 @author: lau05219
 """
 
+import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
@@ -13,6 +14,7 @@ from espy import get
 
 # pylint: disable-msg=C0103
 
+
 def set_axes_radius(ax, origin, radius):
     ax.set_xlim3d([origin[0] - radius, origin[0] + radius])
     ax.set_ylim3d([origin[1] - radius, origin[1] + radius])
@@ -20,19 +22,15 @@ def set_axes_radius(ax, origin, radius):
 
 
 def set_axes_equal(ax):
-    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    """Make axes of 3D plot have equal scale so that spheres appear as spheres,
     cubes as cubes, etc..  This is one possible solution to Matplotlib's
     ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
 
     Input
       ax: a matplotlib axis, e.g., as output from plt.gca().
-    '''
+    """
 
-    limits = np.array([
-        ax.get_xlim3d(),
-        ax.get_ylim3d(),
-        ax.get_zlim3d(),
-    ])
+    limits = np.array([ax.get_xlim3d(), ax.get_ylim3d(), ax.get_zlim3d()])
 
     origin = np.mean(limits, axis=1)
     radius = 0.5 * np.max(np.abs(limits[:, 1] - limits[:, 0]))
@@ -156,11 +154,9 @@ def plot_zone(geo_file, ax=None, show_roof=True):
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    ax.set_aspect('equal')         # important!
-
-    espy.plot_zone(...)
-
-    set_axes_equal(ax)             # important!
+    ax.set_aspect('equal')
+    plot.plot_zone(geo_file, ax=ax)
+    plot.set_axes_equal(ax)
     plt.show()
 
     """
@@ -173,13 +169,14 @@ def plot_zone(geo_file, ax=None, show_roof=True):
         vs = []
         for vertex in surface:
             vs.append(vertices[vertex - 1])
-        # Plot surface from vertex coordinates
-        if (geo["props"][i][1] == "CEIL" or geo["props"][i][1] == "SLOP") and not show_roof:
+        # Plot surface from vertex coordinates)
+        if (
+            geo["props"][i][1] == "CEIL" or geo["props"][i][1] == "SLOP"
+        ) and not show_roof:
             print("not showing roof")
         else:
             if geo["props"][i][6] == "OPAQUE" and geo["props"][i][7] == "EXTERIOR":
                 if "DOOR" in geo["props"][i][3] or "FRAME" in geo["props"][i][3]:
-                    # door or frame
                     plot_zone_surface(vs, ax=ax, facecolour="#c19a6b", alpha=None)
                 else:
                     # default grey surface
@@ -208,26 +205,26 @@ def plot_construction(con_data, vertices_surf, ax=None):
     start = 0
     for i, _ in enumerate(con_data):
         a4 = vertices_surf + [vertices_surf[0]]
-        
+
         X = [
             # [v[0] for v in a1],
             # [v[0] for v in a2],
-            [v[0]+(start+thickness[i])*normal[0] for v in a4],
-            [v[0]+start*normal[0] for v in a4],
+            [v[0] + (start + thickness[i]) * normal[0] for v in a4],
+            [v[0] + start * normal[0] for v in a4],
         ]
 
         Y = [
             # [v[1] for v in a1],
             # [v[1] for v in a2],
-            [v[1]+(start+thickness[i])*normal[1] for v in a4],
-            [v[1]+start*normal[1] for v in a4],
+            [v[1] + (start + thickness[i]) * normal[1] for v in a4],
+            [v[1] + start * normal[1] for v in a4],
         ]
 
         Z = [
             # [v[2] for v in a1],
             # [v[2] for v in a2],
-            [v[2]+(start+thickness[i])*normal[2] for v in a4],
-            [v[2]+start*normal[2] for v in a4],
+            [v[2] + (start + thickness[i]) * normal[2] for v in a4],
+            [v[2] + start * normal[2] for v in a4],
         ]
 
         ax.plot_surface(np.array(X), np.array(Y), np.array(Z), rstride=1, cstride=1)
@@ -235,9 +232,67 @@ def plot_construction(con_data, vertices_surf, ax=None):
         start += thickness[i]
 
 
+def construction_schematics(con_file, geo_file):
+    """Plot 2D construction schematic."""
+    # TODO(j.allison): Allow figsize as keyword argument.
+    # TODO(j.allison): Set fixed scaling for equal aspect.
+    #      This is to ensure that all figures are the same scaling.
+    # TODO(j.allison): colour layers according to material type.
+    #     This will be hard as the material name is not stored in any model file.
+    #     Will have to look up the construction in the constr.db and extract the
+    #     names. With the name extracted, will then have to look up the category
+    #     in the material.db.
+    geo = get.geometry(geo_file)
+    con = get.constructions(con_file, geo_file)
+    con_names = [x[5] for x in geo["props"]]
+    unique_cons = list(sorted(set(con_names)))
+    y_constr = 500
+    for constr in unique_cons:
+        loc_con = con_names.index(constr)
+        con_data_i = con["layer_therm_props"][loc_con]
+        air_gap_props_i = con["air_gap_props"][loc_con]
+        if air_gap_props_i is not None:
+            idx_air_gaps_i = air_gap_props_i[0::2]
+        else:
+            idx_air_gaps_i = []
+        dx = [0] + [x[3] for x in con_data_i]
+        x_dat = [x * 1000 for x in list(itertools.accumulate(dx))]
+
+        # plt.style.use('grayscale')
+        fig, ax = plt.subplots(figsize=(3.54, 2.655), dpi=220)
+        fig.canvas.set_window_title(constr)
+        ax.vlines(x_dat, 0, y_constr, linewidth=0.5)
+        for i, _ in enumerate(x_dat[0:-1]):
+            layer = i + 1
+            if i == 0:
+                name = "Ext"
+            elif i == len(con_data_i) - 1:
+                name = "Int"
+            else:
+                name = i + 1
+            ax.text(x_dat[i], y_constr + 10, name)
+            if layer in idx_air_gaps_i:
+                continue
+            else:
+                ax.fill_betweenx(
+                    (0, y_constr), x_dat[i], x_dat[i + 1], alpha=0.4, color="grey"
+                )
+        ax.set_aspect("equal")
+        ax.set_xticks([0, max(x_dat)])
+        ax.set_xlim(0 - 10, max(x_dat) + 10)
+        ax.set_ylim(0, y_constr + 10)
+        ax.yaxis.set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        plt.tight_layout()
+        plt.savefig(f"{constr}.png", bbox_inches="tight", pad_inches=0, dpi=220)
+
+
 def plot_zone_constructions(con_file, geo_file, ax=None):
     zone_geometry = get.geometry(geo_file)
-    _, _, layer_therm_props, _, _, _, _ = get.constructions(con_file, geo_file)
+    con = get.constructions(con_file, geo_file)
+    layer_therm_props = con["layer_therm_props"]
 
     for i, _ in enumerate(zone_geometry["edges"]):
         con_data = layer_therm_props[i]
@@ -283,7 +338,8 @@ def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=
             plot_zone_surface(vertices_surf, ax=ax, facecolour="#008db0")
 
     # Plot construction layers
-    _, _, layer_therm_props, _, _, _, _ = get.constructions(con_file, geo_file)
+    con = get.constructions(con_file, geo_file)
+    layer_therm_props = con["layer_therm_props"]
     con_data = layer_therm_props[idx_surface]
     if (surface_props[1] == "CEIL" or surface_props[1] == "SLOP") and not show_roof:
         pass
@@ -297,9 +353,9 @@ def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=
     # vertices_surf += [vertices_surf[0]]
     total_thickness = sum([x[3] for x in con_data])
     # Extend vertex position along surface normal by the total thickness
-    x_pos = [v[0]+total_thickness*normal[0] for v in vertices_surf]
-    y_pos = [v[1]+total_thickness*normal[1] for v in vertices_surf]
-    z_pos = [v[2]+total_thickness*normal[2] for v in vertices_surf]
+    x_pos = [v[0] + total_thickness * normal[0] for v in vertices_surf]
+    y_pos = [v[1] + total_thickness * normal[1] for v in vertices_surf]
+    z_pos = [v[2] + total_thickness * normal[2] for v in vertices_surf]
     # Restructure to surface vertices
     # Can probably do this in a zip list comprehension...
     vertices_surf_outer = []
@@ -311,21 +367,33 @@ def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=
         if surface_props[6] == "OPAQUE" and surface_props[7] == "EXTERIOR":
             if "DOOR" in surface_props[3] or "FRAME" in surface_props[3]:
                 # door or frame
-                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#c19a6b", alpha=None)
+                plot_zone_surface(
+                    vertices_surf_outer, ax=ax, facecolour="#c19a6b", alpha=None
+                )
             else:
                 # default grey surface
-                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#afacac", alpha=None)
+                plot_zone_surface(
+                    vertices_surf_outer, ax=ax, facecolour="#afacac", alpha=None
+                )
         elif surface_props[6] == "OPAQUE" and surface_props[7] == "ANOTHER":
             if "DOOR" in surface_props[3]:
                 # door
-                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#f5f2d0", alpha=None)
+                plot_zone_surface(
+                    vertices_surf_outer, ax=ax, facecolour="#f5f2d0", alpha=None
+                )
             else:
                 # default 25% lighter surface
-                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#ffffff", alpha=None)
+                plot_zone_surface(
+                    vertices_surf_outer, ax=ax, facecolour="#ffffff", alpha=None
+                )
         elif surface_props[6] == "OPAQUE" and surface_props[7] == "SIMILAR":
-            plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#d8e4bc", alpha=None)
+            plot_zone_surface(
+                vertices_surf_outer, ax=ax, facecolour="#d8e4bc", alpha=None
+            )
         elif surface_props[6] == "OPAQUE" and surface_props[7] == "GROUND":
-            plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#654321", alpha=None)
+            plot_zone_surface(
+                vertices_surf_outer, ax=ax, facecolour="#654321", alpha=None
+            )
         else:
             # Transparent surfaces
             plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#008db0")
