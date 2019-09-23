@@ -9,6 +9,7 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
+from wand.image import Image
 
 from espy import get
 
@@ -232,11 +233,17 @@ def plot_construction(con_data, vertices_surf, ax=None):
         start += thickness[i]
 
 
-def construction_schematics(con_file, geo_file):
-    """Plot 2D construction schematic."""
-    # TODO(j.allison): Allow figsize as keyword argument.
-    # TODO(j.allison): Set fixed scaling for equal aspect.
-    #      This is to ensure that all figures are the same scaling.
+def construction_schematics(con_file, geo_file, figsize=(3.54, 2.655), savefig=False):
+    """Plot 2D construction schematic.
+    
+    Args:
+        con_file: ESP-r construction file.
+        geo_file: ESP-r geometry file.
+        figsize: Tuple (length, height) of figure in inches.
+        savefig: boolean. If True exports figures to png files.
+            Note that this calls ImageMagick to trim the whitespace
+            from the image.
+    """
     # TODO(j.allison): colour layers according to material type.
     #     This will be hard as the material name is not stored in any model file.
     #     Will have to look up the construction in the constr.db and extract the
@@ -245,6 +252,9 @@ def construction_schematics(con_file, geo_file):
     geo = get.geometry(geo_file)
     con = get.constructions(con_file, geo_file)
     con_names = [x[5] for x in geo["props"]]
+    thick_tot = [
+        round(sum([x[3] for x in constr]), 3) for constr in con["layer_therm_props"]
+    ]
     unique_cons = list(sorted(set(con_names)))
     y_constr = 500
     for constr in unique_cons:
@@ -259,7 +269,7 @@ def construction_schematics(con_file, geo_file):
         x_dat = [x * 1000 for x in list(itertools.accumulate(dx))]
 
         # plt.style.use('grayscale')
-        fig, ax = plt.subplots(figsize=(3.54, 2.655), dpi=220)
+        fig, ax = plt.subplots(figsize=figsize, dpi=220)
         fig.canvas.set_window_title(constr)
         ax.vlines(x_dat, 0, y_constr, linewidth=0.5)
         for i, _ in enumerate(x_dat[0:-1]):
@@ -279,14 +289,19 @@ def construction_schematics(con_file, geo_file):
                 )
         ax.set_aspect("equal")
         ax.set_xticks([0, max(x_dat)])
-        ax.set_xlim(0 - 10, max(x_dat) + 10)
+        ax.set_xlim(0 - 10, 1000 * max(thick_tot) + 10)
         ax.set_ylim(0, y_constr + 10)
         ax.yaxis.set_visible(False)
         ax.spines["left"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
         plt.tight_layout()
-        plt.savefig(f"{constr}.png", bbox_inches="tight", pad_inches=0, dpi=220)
+        if savefig:
+            plt.savefig(f"{constr}.png", bbox_inches="tight", pad_inches=0, dpi=220)
+            with Image(filename=f"{constr}.png") as img:
+                img.trim(color=None, fuzz=0)
+                img.save(filename=f"{constr}.png")
 
 
 def plot_zone_constructions(con_file, geo_file, ax=None):
