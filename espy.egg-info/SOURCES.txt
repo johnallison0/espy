@@ -2,6 +2,7 @@ README.md
 setup.py
 espy/__init__.py
 espy/bps.py
+espy/convert.py
 espy/edit.py
 espy/get.py
 espy/plot.py

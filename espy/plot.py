@@ -16,6 +16,7 @@ from espy import get
 
 
 def set_axes_radius(ax, origin, radius):
+    """Set axes radius."""
     ax.set_xlim3d([origin[0] - radius, origin[0] + radius])
     ax.set_ylim3d([origin[1] - radius, origin[1] + radius])
     ax.set_zlim3d([origin[2] - radius, origin[2] + radius])
@@ -96,8 +97,8 @@ def cuboid_data(o, size=(1, 1, 1)):
 
 
 def plot_cuboid(pos=(0, 0, 0), size=(1, 1, 1), ax=None, **kwargs):
-    # Plotting a cube element at position pos
-    if ax != None:
+    """Plotting a cube element at position pos."""
+    if ax is not None:
         X, Y, Z, _, _, _ = cuboid_data(pos, size)
         ax.plot_surface(X, Y, Z, rstride=1, cstride=1, **kwargs)
 
@@ -141,7 +142,7 @@ def plot_zone_surface(vertices, ax=None, facecolour=None, alpha=0.2):
         surf.set_facecolor(facecolour)
         surf_outline = Line3DCollection(verts, colors="k")
     # Add to axes
-    if ax != None:
+    if ax is not None:
         ax.add_collection3d(surf_outline)
         if facecolour is not None:
             ax.add_collection3d(surf)
@@ -149,7 +150,7 @@ def plot_zone_surface(vertices, ax=None, facecolour=None, alpha=0.2):
 
 def plot_zone(geo_file, ax=None, show_roof=True):
     """Plot zone from surfaces
-    
+
     Example:
 
     fig = plt.figure()
@@ -170,9 +171,7 @@ def plot_zone(geo_file, ax=None, show_roof=True):
         for vertex in surface:
             vs.append(vertices[vertex - 1])
         # Plot surface from vertex coordinates)
-        if (
-            geo["props"][i][1] == "CEIL" or geo["props"][i][1] == "SLOP"
-        ) and not show_roof:
+        if (geo["props"][i][1] == "CEIL" or geo["props"][i][1] == "SLOP") and not show_roof:
             print("not showing roof")
         else:
             if geo["props"][i][6] == "OPAQUE" and geo["props"][i][7] == "EXTERIOR":
@@ -199,6 +198,7 @@ def plot_zone(geo_file, ax=None, show_roof=True):
 
 
 def plot_construction(con_data, vertices_surf, ax=None):
+    """Plot 3D construction on matplotlib surface."""
     con_data.reverse()
     thickness = [x[3] for x in con_data]
     normal = get.calculate_normal(vertices_surf)
@@ -274,9 +274,7 @@ def construction_schematics(con_file, geo_file):
             if layer in idx_air_gaps_i:
                 continue
             else:
-                ax.fill_betweenx(
-                    (0, y_constr), x_dat[i], x_dat[i + 1], alpha=0.4, color="grey"
-                )
+                ax.fill_betweenx((0, y_constr), x_dat[i], x_dat[i + 1], alpha=0.4, color="grey")
         ax.set_aspect("equal")
         ax.set_xticks([0, max(x_dat)])
         ax.set_xlim(0 - 10, max(x_dat) + 10)
@@ -290,6 +288,7 @@ def construction_schematics(con_file, geo_file):
 
 
 def plot_zone_constructions(con_file, geo_file, ax=None):
+    """Plot all zone constructions."""
     zone_geometry = get.geometry(geo_file)
     con = get.constructions(con_file, geo_file)
     layer_therm_props = con["layer_therm_props"]
@@ -367,33 +366,21 @@ def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=
         if surface_props[6] == "OPAQUE" and surface_props[7] == "EXTERIOR":
             if "DOOR" in surface_props[3] or "FRAME" in surface_props[3]:
                 # door or frame
-                plot_zone_surface(
-                    vertices_surf_outer, ax=ax, facecolour="#c19a6b", alpha=None
-                )
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#c19a6b", alpha=None)
             else:
                 # default grey surface
-                plot_zone_surface(
-                    vertices_surf_outer, ax=ax, facecolour="#afacac", alpha=None
-                )
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#afacac", alpha=None)
         elif surface_props[6] == "OPAQUE" and surface_props[7] == "ANOTHER":
             if "DOOR" in surface_props[3]:
                 # door
-                plot_zone_surface(
-                    vertices_surf_outer, ax=ax, facecolour="#f5f2d0", alpha=None
-                )
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#f5f2d0", alpha=None)
             else:
                 # default 25% lighter surface
-                plot_zone_surface(
-                    vertices_surf_outer, ax=ax, facecolour="#ffffff", alpha=None
-                )
+                plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#ffffff", alpha=None)
         elif surface_props[6] == "OPAQUE" and surface_props[7] == "SIMILAR":
-            plot_zone_surface(
-                vertices_surf_outer, ax=ax, facecolour="#d8e4bc", alpha=None
-            )
+            plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#d8e4bc", alpha=None)
         elif surface_props[6] == "OPAQUE" and surface_props[7] == "GROUND":
-            plot_zone_surface(
-                vertices_surf_outer, ax=ax, facecolour="#654321", alpha=None
-            )
+            plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#654321", alpha=None)
         else:
             # Transparent surfaces
             plot_zone_surface(vertices_surf_outer, ax=ax, facecolour="#008db0")

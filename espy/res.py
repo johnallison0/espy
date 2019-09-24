@@ -6,7 +6,62 @@ from subprocess import PIPE, run
 from espy import get
 
 
-def time_series(cfg_file, res_file, param_list, flow_file=None, out_file=None, time_fmt=None):
+def calc_airtightness(cfg_file, res_file, mfr_file, V, zones):
+    """Calculate building airtightness at 50 Pa.
+
+    Args:
+        cfg_file: ESP-r configuration file.
+        res_file: ESP-r results database.
+        mfr_file: ESP-r mass flow results database.
+        zones: List of strings with zones to include e.g.
+            zones = ["a", "b"] to get air flow from those air flow nodes
+
+    Returns:
+        n_50: Air change rate (1/h)
+        q_50: Air permeability (m^3/(h.m^2))
+        w_50: Specific leakage rate (m^3/(h.m^2))
+    """
+
+    # Get volume flow rate from ambient
+    cmd_1 = [
+        "",  # confirm building results file
+        "c",  # reports
+        "g",  # performance metrics
+        ">",  # open file
+        "temp.csv",
+        "",
+        "n",  # network flow
+        mfr_file,
+        "j",  # volume flow rate
+        "a",  # in m^3/s
+        "d",  # total from ambient
+    ]
+
+    cmd_write = [
+        "-",
+        "!",
+        ">",
+        "-",
+        "-",
+        "-",
+        "-",
+    ]
+
+    cmd = cmd_1 + zones + cmd_write
+    cmd = "\n".join(cmd)
+    res = run(["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii")
+    Vdot_ambient = []
+    with open("temp.csv", "r") as f:
+        for i, line in enumerate(f):
+            if i > 2:
+                Vdot_ambient.append([float(x) for x in line.strip().split()[0::2][1:]])
+    air_changes_build = [3600*sum(x)/V for x in Vdot_ambient]
+    n_50 = sum(air_changes_build)/len(air_changes_build)
+
+    return n_50
+
+
+def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     """Extract results from results database to CSV.
 
     TODO(j.allison): if more than 42 this will break.
@@ -82,8 +137,6 @@ def time_series(cfg_file, res_file, param_list, flow_file=None, out_file=None, t
         "Aggregate humidification": ["h", "k"],
         # Zone RH
         "Zone RH": ["i"],
-        # Network air/wtr flow
-        "contaminant @ node": ["n", flow_file, "m"],
     }
 
     # Read cfg file for list of zones
@@ -100,120 +153,95 @@ def time_series(cfg_file, res_file, param_list, flow_file=None, out_file=None, t
     if time_fmt is not None:
         csv_open = [">", "temp.csv", "desc"] + time_dict[time_fmt] + ["&", "^", "e"]
     else:
-        csv_open = [">", "temp.csv", "desc"]+ ["&", "^", "e"]
+        csv_open = [">", "temp.csv", "desc"] + ["&", "^", "e"]
     perf_met = ["g"]
 
-    # TODO(j.allison): If "contaminant @ node" is selected overwrite res_select
-    if flow_file is not None:
-        res_select = ["n", "", "m"] + ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "-"] + ["a", "-"] # co2
-        # print(res_select)
-    else:
-        res_select = []
-        zone_select = []
-        for item in param_list:
-            zone_input = item[0]
-            metric_input = item[1]
-            # ---------------------------------
-            # Select all zones
-            # ---------------------------------
-            if zone_input == "all":
-                res_select.append(["4", "*", "-"])
-            # ---------------------------------
-            # Multiple zone selections
-            # ---------------------------------
-            elif isinstance(zone_input, list) and len(zone_input) > 1:
-                for j in zone_input:
-                    # Selection by id:
-                    if j[:3] == "id:":
-                        selected_zone = j[3:]
-                        chr_zone = [
-                            chr(96 + ind + 1) for ind, x in enumerate(zone_names) if x == selected_zone
-                        ]
-                        # If exists select it, otherwise throw error
-                        if chr_zone:
-                            zone_select.append(chr_zone[0])
-                        else:
-                            print("zone selection error, '{}' not found".format(selected_zone))
-                    # Assume direct letter selection of zones if len = 1
-                    elif len(j) == 1:
-                        zone_select.append(j[0])
+    res_select = []
+    zone_select = []
+    for item in param_list:
+        zone_input = item[0]
+        metric_input = item[1]
+        # ---------------------------------
+        # Select all zones
+        # ---------------------------------
+        if zone_input == "all":
+            res_select.append(["4", "*", "-"])
+        # ---------------------------------
+        # Multiple zone selections
+        # ---------------------------------
+        elif isinstance(zone_input, list) and len(zone_input) > 1:
+            for j in zone_input:
+                # Selection by id:
+                if j[:3] == "id:":
+                    selected_zone = j[3:]
+                    chr_zone = [
+                        chr(96 + ind + 1)
+                        for ind, x in enumerate(zone_names)
+                        if x == selected_zone
+                    ]
+                    # If exists select it, otherwise throw error
+                    if chr_zone:
+                        zone_select.append(chr_zone[0])
                     else:
-                        print("zone selection error for '{}', check input format".format(j))
-                res_select.append(["4"] + zone_select + ["-"])
-            # ---------------------------------
-            # Single selection
-            # ---------------------------------
-            # From zone name
-            elif zone_input[:3] == "id:":
-                selected_zone = zone_input[3:]
-                chr_zone = [chr(96 + ind + 1) for ind, x in enumerate(zone_names) if x == selected_zone]
-                # If exists select it, otherwise throw error
-                if chr_zone:
-                    zone_select.append(chr_zone[0])
-                    res_select.append(["4"] + zone_select + ["-"])
+                        print("zone selection error, '{}' not found".format(selected_zone))
+                # Assume direct letter selection of zones if len = 1
+                elif len(j) == 1:
+                    zone_select.append(j[0])
                 else:
-                    print("zone selection error, '{}' not found".format(selected_zone))
-            # Assume single letter selection
-            elif len(zone_input) == 1:
-                zone_select.append(zone_input[0])
+                    print("zone selection error for '{}', check input format".format(j))
+            res_select.append(["4"] + zone_select + ["-"])
+        # ---------------------------------
+        # Single selection
+        # ---------------------------------
+        # From zone name
+        elif zone_input[:3] == "id:":
+            selected_zone = zone_input[3:]
+            chr_zone = [
+                chr(96 + ind + 1) for ind, x in enumerate(zone_names) if x == selected_zone
+            ]
+            # If exists select it, otherwise throw error
+            if chr_zone:
+                zone_select.append(chr_zone[0])
                 res_select.append(["4"] + zone_select + ["-"])
             else:
-                print("zone selection error for '{}', check input format".format(zone_input))
-            # Select metric
-            # If error in single selection, gets all zones (for now)
-            res_select.append(res_dict[metric_input])
+                print("zone selection error, '{}' not found".format(selected_zone))
+        # Assume single letter selection
+        elif len(zone_input) == 1:
+            zone_select.append(zone_input[0])
+            res_select.append(["4"] + zone_select + ["-"])
+        else:
+            print("zone selection error for '{}', check input format".format(zone_input))
+        # Select metric
+        # If error in single selection, gets all zones (for now)
+        res_select.append(res_dict[metric_input])
 
-        # Flatten list
-        res_select = list(itertools.chain.from_iterable(res_select))
+    # Flatten list
+    res_select = list(itertools.chain.from_iterable(res_select))
 
-    # TODO(j.allison): network flow auto-writes to file
-    if flow_file is not None:
-        csv_close = [">"]
-    else:
-        csv_close = ["!", ">"]
+    csv_close = ["!", ">"]
     res_close = ["-", "-", "-", "-"]
 
     cmd = res_open + csv_open + perf_met + res_select + csv_close + res_close
     cmd = "\n".join(cmd)
     # print(cmd)
-    res = run(
-        ["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii"
-    )
+    res = run(["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii")
 
     # --------------------------------
     # Trim comment from header of file
     # --------------------------------
-    # TODO(j.allison): netflow flow results only have 3 lines in the header and header is not comma sep.
-    if flow_file is not None:
-        header_lines = 3
-        with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
-            reader = csv.reader(infile)
-            writer = csv.writer(outfile)
-            line_count = 1
-            for row in reader:
-                if line_count < header_lines:
-                    newrow = row
-                elif line_count == header_lines:
-                    newrow = ["Time", "liv_kit(ppm)", "hall_gnd(ppm)", "wc(ppm)", "bathroom(ppm)", "cupboard(ppm)", "bedroom1(ppm)", "hall_upr(ppm)", "bedroom2(ppm)", "bedroom3(ppm)", "roof(ppm)"]
-                else:
-                    # Scale from g/kg to ppm
-                    newrow = [row[0]] + [round(1000*float(x), 4) for x in row[1:]]
-                writer.writerow(newrow)
-                line_count += 1
-    else:
-        header_lines = 4
-        # Normal performance metrics
-        with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
-            reader = csv.reader(infile)
-            writer = csv.writer(outfile)
-            line_count = 1
-            for row in reader:
-                if line_count == header_lines:
-                    newrow = ["Time"] + row[1:]
-                else:
-                    newrow = row
-                writer.writerow(newrow)
-                line_count += 1
+    header_lines = 4
+    # Normal performance metrics
+    with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
+        reader = csv.reader(infile)
+        writer = csv.writer(outfile)
+        line_count = 1
+        for row in reader:
+            if line_count == header_lines:
+                newrow = ["Time"] + row[1:]
+            else:
+                newrow = row
+            writer.writerow(newrow)
+            line_count += 1
     os.remove("temp.csv")
 
     return res
@@ -284,7 +312,7 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
             writer.writerow(headers)
             for zone in overheating_frequency:
                 writer.writerow(zone)
-    
+
     return overheating_frequency
 
 
