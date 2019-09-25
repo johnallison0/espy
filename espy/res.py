@@ -1,18 +1,21 @@
 """Module to automate retrieval of data from res."""
 import csv
-import os
 import itertools
+import os
 from subprocess import PIPE, run
+
+import pandas
+
 from espy import get
 
 
-def calc_airtightness(cfg_file, res_file, mfr_file, V, zones):
+def calc_airtightness(res_file, mfr_file, volume, zones):
     """Calculate building airtightness at 50 Pa.
 
     Args:
-        cfg_file: ESP-r configuration file.
         res_file: ESP-r results database.
         mfr_file: ESP-r mass flow results database.
+        volume: Heated volume of building (m^3).
         zones: List of strings with zones to include e.g.
             zones = ["a", "b"] to get air flow from those air flow nodes
 
@@ -37,40 +40,103 @@ def calc_airtightness(cfg_file, res_file, mfr_file, V, zones):
         "d",  # total from ambient
     ]
 
-    cmd_write = [
-        "-",
-        "!",
-        ">",
-        "-",
-        "-",
-        "-",
-        "-",
-    ]
+    cmd_write = ["-", "!", ">", "-", "-", "-", "-"]
 
     cmd = cmd_1 + zones + cmd_write
     cmd = "\n".join(cmd)
-    res = run(["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii")
-    Vdot_ambient = []
-    with open("temp.csv", "r") as f:
-        for i, line in enumerate(f):
+    run(["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii")
+    vdot_ambient = []
+    with open("temp.csv", "r") as f_in:
+        for i, line in enumerate(f_in):
             if i > 2:
-                Vdot_ambient.append([float(x) for x in line.strip().split()[0::2][1:]])
-    air_changes_build = [3600*sum(x)/V for x in Vdot_ambient]
-    n_50 = sum(air_changes_build)/len(air_changes_build)
+                vdot_ambient.append([float(x) for x in line.strip().split()[0::2][1:]])
+    air_changes_build = [3600 * sum(x) / volume for x in vdot_ambient]
+    n_50 = sum(air_changes_build) / len(air_changes_build)
 
     return n_50
+
+
+def air_supply(res_file, mfr_file, zones):
+    """Retreive air supply from ambient to zones.
+
+    Args:
+        res_file: ESP-r results database.
+        mfr_file: ESP-r mass flow results database.
+        zones: List of strings with zones to include e.g.
+            zones = ["a", "b"] to get air flow from those air flow nodes
+
+    Returns:
+        df: Pandas dataframe with volume flow rate to/from ambient per zone.
+    """
+
+    # Get volume flow rate from ambient
+    cmd_1 = [
+        "",  # confirm building results file
+        "c",  # reports
+        "g",  # performance metrics
+        "^",  # delim
+        "e",  # comma
+        "*",
+        "a",
+        "*",
+        "a",  # Time mm-dd 10:30:00
+        ">",  # open file
+        "temp.csv",
+        "",
+        "n",  # network flow
+        mfr_file,
+        "j",  # volume flow rate
+        "a",  # in m^3/s
+        "d",  # total from ambient
+    ]
+
+    cmd_write = ["-", "!", ">", "-", "-", "-", "-"]
+
+    cmd = cmd_1 + zones + cmd_write
+    cmd = "\n".join(cmd)
+    run(["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii")
+
+    header_lines = 3
+    with open("temp.csv", "r") as infile, open(
+        "airflow.csv", "w", newline=""
+    ) as outfile:
+        reader = csv.reader(infile)
+        writer = csv.writer(outfile)
+        line_count = 1
+        for row in reader:
+            if line_count < header_lines:
+                pass
+            elif line_count == header_lines:
+                newrow = row[0].strip().split()
+                writer.writerow(newrow)
+            else:
+                newrow = row
+                writer.writerow(newrow)
+            line_count += 1
+    os.remove("temp.csv")
+
+    df = pandas.read_csv("airflow.csv", sep=",", header=0, index_col=0)
+
+    return df
 
 
 def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     """Extract results from results database to CSV.
 
-    TODO(j.allison): if more than 42 this will break.
+    Args:
+        cfg_file: ESP-r configuration file.
+        res_file: ESP-r results database.
+        param_list: List of parameters to extract.
+            Examples -
+            param_list = [['all', 'Zone db T']]
+            param_list = [['id:reception', 'Zone db T']]
+            param_list = [[['id:roof_space', 'id:reception'], 'Zone db T']]
+            param_list = [[['a', 'b'], 'Zone db T'], [['id:reception', 'b'], 'Wind direction']]
+        out_file (optional): Name of exported CSV file.
+        time_fmt: Format of DateTime in exported CSV. Julian or DateTime
 
-    param_list can be in the following format:
-    param_list = [['all', 'Zone db T']]
-    param_list = [['id:reception', 'Zone db T']]
-    param_list = [[['id:roof_space', 'id:reception'], 'Zone db T']]
-    param_list = [[['a', 'b'], 'Zone db T'], [['id:reception', 'b'], 'Wind direction']]
+    Returns:
+        res: Console feedback from res.
     """
     res_dict = {
         # Climate
@@ -140,7 +206,8 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     }
 
     # Read cfg file for list of zones
-    _, _, _, _, _, _, zones = get.config(cfg_file)
+    cfg = get.config(cfg_file)
+    zones = cfg["zones"]
 
     # Loop through each zone file and get zone name
     zone_names = []
@@ -148,6 +215,7 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
         file_path = zones[ind][1]["geo"]
         zone_names.append(get.geometry(file_path)["name"])
 
+    # TODO(j.allison): Check/validate time_fmt
     res_open = ["", "c"]
     time_dict = {"Julian": ["*", "a"], "DateTime": ["*", "a", "*", "a"]}
     if time_fmt is not None:
@@ -183,7 +251,9 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
                     if chr_zone:
                         zone_select.append(chr_zone[0])
                     else:
-                        print("zone selection error, '{}' not found".format(selected_zone))
+                        print(
+                            "zone selection error, '{}' not found".format(selected_zone)
+                        )
                 # Assume direct letter selection of zones if len = 1
                 elif len(j) == 1:
                     zone_select.append(j[0])
@@ -197,7 +267,9 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
         elif zone_input[:3] == "id:":
             selected_zone = zone_input[3:]
             chr_zone = [
-                chr(96 + ind + 1) for ind, x in enumerate(zone_names) if x == selected_zone
+                chr(96 + ind + 1)
+                for ind, x in enumerate(zone_names)
+                if x == selected_zone
             ]
             # If exists select it, otherwise throw error
             if chr_zone:
@@ -210,7 +282,9 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
             zone_select.append(zone_input[0])
             res_select.append(["4"] + zone_select + ["-"])
         else:
-            print("zone selection error for '{}', check input format".format(zone_input))
+            print(
+                "zone selection error for '{}', check input format".format(zone_input)
+            )
         # Select metric
         # If error in single selection, gets all zones (for now)
         res_select.append(res_dict[metric_input])
@@ -224,27 +298,32 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     cmd = res_open + csv_open + perf_met + res_select + csv_close + res_close
     cmd = "\n".join(cmd)
     # print(cmd)
-    res = run(["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii")
+    res = run(
+        ["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii"
+    )
 
-    # --------------------------------
-    # Trim comment from header of file
-    # --------------------------------
     header_lines = 4
-    # Normal performance metrics
     with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
         reader = csv.reader(infile)
         writer = csv.writer(outfile)
         line_count = 1
         for row in reader:
-            if line_count == header_lines:
+            if line_count < header_lines:
+                pass
+            elif line_count == header_lines:
                 newrow = ["Time"] + row[1:]
+                writer.writerow(newrow)
             else:
                 newrow = row
-            writer.writerow(newrow)
+                writer.writerow(newrow)
             line_count += 1
     os.remove("temp.csv")
 
-    return res
+    data_frame = pandas.read_csv(
+        out_file, sep=",", header=0, index_col=0, parse_dates=True
+    )
+
+    return data_frame
 
 
 def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
@@ -271,7 +350,12 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
         "-",
     ]
     cmd = "\n".join(cmd)
-    run(["res", "-file", res_file, "-mode", "script"], stdout=PIPE, input=cmd, encoding="ascii")
+    run(
+        ["res", "-file", res_file, "-mode", "script"],
+        stdout=PIPE,
+        input=cmd,
+        encoding="ascii",
+    )
 
     # Read in CSV output from ESP-r
     data = []
@@ -302,7 +386,9 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
     # Calculate percentage of time above limit
     overheating_frequency = []
     for zone in data:
-        overheating_frequency.append([zone[0], round(float(zone[6]) / total_hours * 100, 1)])
+        overheating_frequency.append(
+            [zone[0], round(float(zone[6]) / total_hours * 100, 1)]
+        )
 
     # Write back out to CSV that can be parsed by HighCharts
     if out_file is not None:
@@ -324,7 +410,12 @@ def energy_balance(cfg_file, res_file, out_file=None):
     # Get zone energy balance from ESP-r to temporary file
     cmd = ["", "d", ">", "temp.csv", "", "^", "e", "h", "b", "b", ">", "-", "-"]
     cmd = "\n".join(cmd)
-    run(["res", "-file", res_file, "-mode", "script"], stdout=PIPE, input=cmd, encoding="ascii")
+    run(
+        ["res", "-file", res_file, "-mode", "script"],
+        stdout=PIPE,
+        input=cmd,
+        encoding="ascii",
+    )
 
     # Read CSV from ESP-r
     data = []
@@ -332,7 +423,11 @@ def energy_balance(cfg_file, res_file, out_file=None):
         with open("temp.csv", "r") as file:
             reader = csv.reader(file, delimiter=",")
             data.append(
-                [row for idx, row in enumerate(reader) if idx in range(19 * i + 6, 19 * i + 21)]
+                [
+                    row
+                    for idx, row in enumerate(reader)
+                    if idx in range(19 * i + 6, 19 * i + 21)
+                ]
             )
 
     # remove temporary CSV file

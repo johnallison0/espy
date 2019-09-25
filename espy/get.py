@@ -484,8 +484,15 @@ def config(filepath):
     if not Z:
         Z = None
 
-    return cfg, date, paths, databases, ctl, year, Z
-
+    return {
+        "cfg": cfg,
+        "date": date,
+        "paths": paths,
+        "databases": databases,
+        "ctl": ctl,
+        "year": year,
+        "zones": Z,
+    }
 
 def geometry(filepath):
     """
