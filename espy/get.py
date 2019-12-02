@@ -634,22 +634,54 @@ def constructions(con_file, geo_file):
         layer_therm_props.append(layer_therm_props_all[nidx[i] : nidx[i + 1]])
 
     # Read emissivities
-    # TODO(j.allison): When there are a lot of layers, these become multi-line
-    # emissivity_inside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers][0])
-    # emissivity_outside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers + 1][0])
+    j = 0
+    e_in = con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    while e_in[-1] == "":
+        j += 1
+        e_in = e_in[:-1]
+        e_in += con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    e_in = [float(x) for x in e_in]
+
+    j += 1
+    e_out = con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    while e_out[-1] == "":
+        j += 1
+        e_out = e_out[:-1]
+        e_out += con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    e_out = [float(x) for x in e_out]
 
     # Read absorptivities
-    # absorptivity_inside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers + 2][0])
-    # absorptivity_outside = split_to_float(con_data[n_cons + n_con_air_gaps + total_layers + 3][0])
+    j += 1
+    a_in = con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    while a_in[-1] == "":
+        j += 1
+        a_in = a_in[:-1]
+        a_in += con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    a_in = [float(x) for x in a_in]
+    
+    j += 1
+    a_out = con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    while a_out[-1] == "":
+        j += 1
+        a_out = a_out[:-1]
+        a_out += con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
+    a_out = [float(x) for x in a_out]
 
+    # Append emissivities and solar absorpt to layer construction
+    layer_therm_props = list(layer_therm_props)
+    for i, con_props in enumerate(layer_therm_props):
+        for j, _ in enumerate(con_props):
+            if j == 0:
+                layer_therm_props[i][j] += [e_out[i], a_out[i]]
+            elif j == (len(con_props)-1):
+                layer_therm_props[i][j] += [e_in[i], a_in[i]]
+            else:
+                layer_therm_props[i][j] += [None, None]
+    # print("debug")
     return {
         "n_layers_con": n_layers_con,
         "air_gap_props": air_gap_props,
         "layer_therm_props": layer_therm_props,
-        # "emissivity_inside": emissivity_inside,
-        # "emissivity_outside": emissivity_outside,
-        # "absorptivity_inside": absorptivity_inside,
-        # "absorptivity_outside": absorptivity_outside,
     }
 
 

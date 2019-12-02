@@ -233,9 +233,78 @@ def plot_construction(con_data, vertices_surf, ax=None):
         start += thickness[i]
 
 
+def construction_schematic(constr_name, constr_data, air_gap_data, figsize=(3.54, 2.655), savefig=False):
+    """Plot 2D construction schematic.
+
+    Args:
+        constr_name: str
+            Name of construction.
+
+        constr_data: dict
+
+        figsize: Tuple (length, height) of figure in inches.
+
+        savefig: boolean
+            If True exports figures to png files.
+            Note that this calls ImageMagick to trim the whitespace
+            from the image.
+    """
+    # TODO(j.allison): colour layers according to material type.
+    #     This will be hard as the material name is not stored in any model file.
+    #     Will have to look up the construction in the constr.db and extract the
+    #     names. With the name extracted, will then have to look up the category
+    #     in the material.db.
+    thick_tot = round(sum([x[3] for x in constr_data]), 3)
+    y_constr = 500
+    air_gap_props_i = air_gap_data
+    con_data_i = constr_data
+    if air_gap_props_i is not None:
+        idx_air_gaps_i = air_gap_props_i[0::2]
+    else:
+        idx_air_gaps_i = []
+    dx = [0] + [x[3] for x in con_data_i]
+    x_dat = [x * 1000 for x in list(itertools.accumulate(dx))]
+
+    # plt.style.use('grayscale')
+    fig, ax = plt.subplots(figsize=figsize, dpi=220)
+    fig.canvas.set_window_title(constr_name)
+    ax.vlines(x_dat, 0, y_constr, linewidth=0.5)
+    for i, _ in enumerate(x_dat[0:-1]):
+        layer = i + 1
+        if i == 0:
+            name = "Ext"
+        elif i == len(con_data_i) - 1:
+            name = "Int"
+        else:
+            name = i + 1
+        ax.text(x_dat[i], y_constr + 10, name)
+        if layer in idx_air_gaps_i:
+            continue
+        else:
+            ax.fill_betweenx((0, y_constr), x_dat[i], x_dat[i + 1], alpha=0.4, color="grey")
+    ax.set_aspect("equal")
+    ax.set_xticks([0, max(x_dat)])
+    ax.set_xlim(0 - 10, 1000 * thick_tot + 10)
+    ax.set_ylim(0, y_constr + 10)
+    ax.yaxis.set_visible(False)
+    ax.spines["left"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    plt.tight_layout()
+    file_name = []
+    if savefig:
+        file_name = f"../images/{constr_name}.png"
+        plt.savefig(file_name, bbox_inches="tight", pad_inches=0, dpi=220)
+        with Image(filename=file_name) as img:
+            img.trim(color=None, fuzz=0)
+            img.save(filename=file_name)
+    return file_name
+
+
 def construction_schematics(con_file, geo_file, figsize=(3.54, 2.655), savefig=False):
     """Plot 2D construction schematic.
-    
+
     Args:
         con_file: ESP-r construction file.
         geo_file: ESP-r geometry file.
@@ -257,6 +326,7 @@ def construction_schematics(con_file, geo_file, figsize=(3.54, 2.655), savefig=F
     ]
     unique_cons = list(sorted(set(con_names)))
     y_constr = 500
+    filenames = []
     for constr in unique_cons:
         loc_con = con_names.index(constr)
         con_data_i = con["layer_therm_props"][loc_con]
@@ -296,10 +366,12 @@ def construction_schematics(con_file, geo_file, figsize=(3.54, 2.655), savefig=F
         ax.spines["bottom"].set_visible(False)
         plt.tight_layout()
         if savefig:
-            plt.savefig(f"{constr}.png", bbox_inches="tight", pad_inches=0, dpi=220)
-            with Image(filename=f"{constr}.png") as img:
+            filenames.append(f"../images/{constr}.png")
+            plt.savefig(f"../images/{constr}.png", bbox_inches="tight", pad_inches=0, dpi=220)
+            with Image(filename=f"../images/{constr}.png") as img:
                 img.trim(color=None, fuzz=0)
-                img.save(filename=f"{constr}.png")
+                img.save(filename=f"../images/{constr}.png")
+    return filenames
 
 
 def plot_zone_constructions(con_file, geo_file, ax=None):
