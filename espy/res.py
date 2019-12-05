@@ -326,8 +326,8 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     return data_frame
 
 
-def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
-    """Get overheating statistics."""
+def abovebelow(cfg_file, res_file, is_below=False, out_file=None, query_point=25):
+    """Get hours above or below a value."""
     # Read cfg file for list of zones
     cfg = get.config(cfg_file)
     zones = cfg["zones"]
@@ -341,7 +341,7 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
         "",
         "^",
         "e",
-        "c",
+        "d" if is_below else "c",
         "b",
         "a",
         "-",
@@ -351,11 +351,13 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
         "-",
     ]
     cmd = "\n".join(cmd)
-    run(
+    res = run(
         ["res", "-file", res_file, "-mode", "script"],
         stdout=PIPE,
+        stderr=PIPE,
         input=cmd,
         encoding="ascii",
+        check=True,
     )
 
     # Read in CSV output from ESP-r
@@ -376,31 +378,36 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
 
     # remove temporary CSV file
     # Handle errors while calling os.remove()
-    # try:
-    #     os.remove("temp.csv")
-    # except:
-    #     print("Error while deleting file ", "temp.csv")
+    try:
+        os.remove("temp.csv")
+    except FileNotFoundError:
+        print("Error while deleting file ", "temp.csv")
 
     # Calculate total number of hours
     total_hours = float(data[0][6]) + float(data[0][7])
 
-    # Calculate percentage of time above limit
-    overheating_frequency = []
-    for zone in data:
-        overheating_frequency.append(
-            [zone[0], float(zone[6]), round(float(zone[6]) / total_hours * 100, 1)]
+    # Write data to output list
+    idx_metric = 7 if is_below else 6
+    output = []
+    for row in data:
+        output.append(
+            [
+                row[0],
+                float(row[idx_metric]),
+                round(float(row[idx_metric]) / total_hours * 100, 1),
+            ]
         )
 
-    # Write back out to CSV that can be parsed by HighCharts
+    # Write back out to CSV
     if out_file is not None:
-        headers = ["Zone", "Overheating frequency"]
+        headers = ["Zone", "Time (h)", "Frequency (%)"]
         with open(out_file, "w", newline="") as write_file:
             writer = csv.writer(write_file)
             writer.writerow(headers)
-            for zone in overheating_frequency:
-                writer.writerow(zone)
+            for row in output:
+                writer.writerow(row)
 
-    return overheating_frequency
+    return output
 
 
 def energy_balance(cfg_file, res_file, out_file=None, group=None):
