@@ -1,13 +1,14 @@
 """Functions for importing and reading ESP-r files"""
+import csv
+import math
 from collections import Counter
 from datetime import datetime
 from itertools import accumulate
-import math
 
 import numpy as np
 import vtk
 
-from espy.utils import split_to_float, space_data_to_list
+from espy.utils import space_data_to_list, split_to_float
 
 # pylint: disable-msg=C0103
 # pylint: disable=no-member
@@ -77,7 +78,9 @@ def generate_vtk_actors(surf_obj, outer_colour, show_edges=False, show_outline=T
     extract.SetInputConnection(surf_obj.GetOutputPort())
 
     # Define format of surface
-    surface_actor.GetProperty().SetColor([x / 255 for x in colors.HTMLColorToRGB(outer_colour[0])])
+    surface_actor.GetProperty().SetColor(
+        [x / 255 for x in colors.HTMLColorToRGB(outer_colour[0])]
+    )
     surface_actor.GetProperty().SetOpacity(outer_colour[1])
 
     # Remove lighting, reflections etc.
@@ -153,11 +156,12 @@ class Component:
         self.boundary.append(property_list[9])
         self.vertices_surf = vertices_surf
 
-
     def generate_vtk_surface(self):
         """Generate building component surface as a VTK objects"""
         # Check for duplicate vertices
-        dups = [k for k, v in Counter(tuple(x) for x in self.vertices_surf).items() if v > 1]
+        dups = [
+            k for k, v in Counter(tuple(x) for x in self.vertices_surf).items() if v > 1
+        ]
         if not dups:
             # Normal surface without holes
 
@@ -168,7 +172,9 @@ class Component:
 
             # Create the polygon
             polygon = vtk.vtkPolygon()
-            polygon.GetPointIds().SetNumberOfIds(len(self.vertices_surf))  # make a polygon
+            polygon.GetPointIds().SetNumberOfIds(
+                len(self.vertices_surf)
+            )  # make a polygon
             for i, _ in enumerate(self.vertices_surf):
                 polygon.GetPointIds().SetId(i, i)
 
@@ -187,13 +193,21 @@ class Component:
         else:
             # Assume surface is a 'weakly simple polygon' due to duplicate vertices
             # get indices of duplicates [O(n^2) solution...]
-            d = [i for i, x in enumerate(self.vertices_surf) if self.vertices_surf.count(x) > 1]
+            d = [
+                i
+                for i, x in enumerate(self.vertices_surf)
+                if self.vertices_surf.count(x) > 1
+            ]
             # print(d)
             # split into 2 polygons (or len(d)/4 polygons...)
             # vertices_surf_outer = self.vertices_surf[: d[1]] + self.vertices_surf[d[3] + 1 :]
-            vertices_surf_outer = self.vertices_surf[: d[0] + 1] + self.vertices_surf[d[-1] + 1 :]
+            vertices_surf_outer = (
+                self.vertices_surf[: d[0] + 1] + self.vertices_surf[d[-1] + 1 :]
+            )
             # vertices_surf_inner = self.vertices_surf[d[1] : d[2]]
-            vertices_surf_inner = self.vertices_surf[d[1] : d[2] + 1] + [self.vertices_surf[d[6] - 1]]
+            vertices_surf_inner = self.vertices_surf[d[1] : d[2] + 1] + [
+                self.vertices_surf[d[6] - 1]
+            ]
             vertices_surf_inner2 = self.vertices_surf[d[3] : d[4]]
             print(vertices_surf_outer)
             print(vertices_surf_inner)
@@ -215,9 +229,16 @@ class Component:
             for i, vertex in enumerate(vertices_surf_outer):
                 points.InsertPoint(i, vertex[0], vertex[1], vertex[2])
             for i, vertex in enumerate(vertices_surf_inner):
-                points.InsertPoint(i + len(vertices_surf_outer), vertex[0], vertex[1], vertex[2])
+                points.InsertPoint(
+                    i + len(vertices_surf_outer), vertex[0], vertex[1], vertex[2]
+                )
             for i, vertex in enumerate(vertices_surf_inner2):
-                points.InsertPoint(i + len(vertices_surf_outer) + len(vertices_surf_inner), vertex[0], vertex[1], vertex[2])
+                points.InsertPoint(
+                    i + len(vertices_surf_outer) + len(vertices_surf_inner),
+                    vertex[0],
+                    vertex[1],
+                    vertex[2],
+                )
 
             # Setup polygons
             polys = vtk.vtkCellArray()
@@ -229,7 +250,9 @@ class Component:
                 polys.InsertCellPoint(i + len(vertices_surf_outer))
             polys.InsertNextCell(len(vertices_surf_inner2))
             for i, vertex in enumerate(vertices_surf_inner2):
-                polys.InsertCellPoint(i + len(vertices_surf_outer) + len(vertices_surf_inner))
+                polys.InsertCellPoint(
+                    i + len(vertices_surf_outer) + len(vertices_surf_inner)
+                )
 
             polyData = vtk.vtkPolyData()
             polyData.SetPoints(points)
@@ -257,7 +280,6 @@ class Component:
             surf_obj.SetProjectionPlaneMode(vtk.VTK_BEST_FITTING_PLANE)
 
         return surf_obj
-
 
     def set_outer_colour(self):
         """Set default colour of otherside surface based on boundary conditions.
@@ -332,9 +354,15 @@ def calculate_normal(p):
         normal[2] += (p[i][0] - p[j][0]) * (p[i][1] + p[j][1])
     # normalise
     nn = [0, 0, 0]
-    nn[0] = normal[0] / math.sqrt((normal[0])**2 + (normal[1])**2 + (normal[2])**2)
-    nn[1] = normal[1] / math.sqrt((normal[0])**2 + (normal[1])**2 + (normal[2])**2)
-    nn[2] = normal[2] / math.sqrt((normal[0])**2 + (normal[1])**2 + (normal[2])**2)
+    nn[0] = normal[0] / math.sqrt(
+        (normal[0]) ** 2 + (normal[1]) ** 2 + (normal[2]) ** 2
+    )
+    nn[1] = normal[1] / math.sqrt(
+        (normal[0]) ** 2 + (normal[1]) ** 2 + (normal[2]) ** 2
+    )
+    nn[2] = normal[2] / math.sqrt(
+        (normal[0]) ** 2 + (normal[1]) ** 2 + (normal[2]) ** 2
+    )
     return nn
 
 
@@ -494,6 +522,7 @@ def config(filepath):
         "zones": Z,
     }
 
+
 def geometry(filepath):
     """
     Reads in an ESP-r geometry file.
@@ -609,13 +638,16 @@ def constructions(con_file, geo_file):
 
     # Get air gap data (these can be of varying length or none at all)
     air_gap_props = []
-    air_gap_data = con_data[n_cons:n_cons+n_con_air_gaps]
+    air_gap_data = con_data[n_cons : n_cons + n_con_air_gaps]
     j = 0
     for i, constr in enumerate(n_layers_con):
         if constr[1] == 0:
             air_gap_props.append(None)
         else:
-            air_gap_props.append([int(air_gap_data[j][0].split(",")[0])] + split_to_float(air_gap_data[j][1][:-1]))
+            air_gap_props.append(
+                [int(air_gap_data[j][0].split(",")[0])]
+                + split_to_float(air_gap_data[j][1][:-1])
+            )
             j += 1
 
     # Read all layers
@@ -658,7 +690,9 @@ def controls(filepath):
     ctl = _read_file(filepath)
     description_overall = " ".join(ctl[0])
     ctl_type = ctl[1][1]
-    sensors, actuators, daytypes, ctl_data, start_times, laws, valid, periods = ([] for i in range(8))
+    sensors, actuators, daytypes, ctl_data, start_times, laws, valid, periods = (
+        [] for i in range(8)
+    )
     if ctl_type == "Building":
         description_zone = " ".join(ctl[2])
         n_ctl = int(ctl[3][0])
@@ -684,10 +718,14 @@ def controls(filepath):
                 for _ in range(periods[i_ctl][i_daytype]):
                     # n_type = int(ctl[10][0])  # unknown use for type
                     laws[i_ctl][i_daytype].append(int(ctl[idx + 6][1].split(" ")[0]))
-                    start_times[i_ctl][i_daytype].append(float(ctl[idx + 6][1].split(" ")[-1]))
+                    start_times[i_ctl][i_daytype].append(
+                        float(ctl[idx + 6][1].split(" ")[-1])
+                    )
                     n_items = int(float(ctl[idx + 7][0]))
                     if n_items > 0:
-                        ctl_data[i_ctl][i_daytype].append(space_data_to_list(ctl[idx + 8], "float"))
+                        ctl_data[i_ctl][i_daytype].append(
+                            space_data_to_list(ctl[idx + 8], "float")
+                        )
                         idx += 3  # 3 data rows per period
                     else:
                         ctl_data[i_ctl][i_daytype].append(None)
@@ -707,7 +745,7 @@ def controls(filepath):
         "valid": valid,
         "periods": periods,
         "links": links,
-    } 
+    }
 
 
 def pos_from_vert_num_list(vertices_zone, edges):
@@ -720,3 +758,78 @@ def pos_from_vert_num_list(vertices_zone, edges):
     for vertex in edges:
         vertices_surf.append(vertices_zone[vertex - 1])
     return vertices_surf
+
+
+def weather(file_path):
+    """Read ESP-r ascii weather file.
+
+    col 1: Diffuse solar on the horizontal (W/m^2)
+    col 2: External dry bulb temperature   (Tenths °C)
+    col 3: Direct normal solar intensity   (W/m^2)
+    col 4: Prevailing wind speed           (Tenths m/s) 
+    col 5: Wind direction                  (clockwise ° from north) 
+    col 6: Relative humidity               (%)
+
+    """
+    solar_diff = []
+    temp_db = []
+    solar_direct = []
+    wind_speed = []
+    wind_direction = []
+    humidity_relative = []
+    header_lines = 13
+    with open(file_path, "r") as csvfile:
+        data = csv.reader(csvfile, delimiter=",")
+        for _ in range(header_lines):
+            next(data, None)
+        i = 0
+        for row in data:
+            if (i % 25) != 24:
+                solar_diff.append(float(row[0]))
+                temp_db.append(float(row[1]) / 10.0)
+                solar_direct.append(float(row[2]))
+                wind_speed.append(float(row[3]) / 10.0)
+                wind_direction.append(float(row[4]))
+                humidity_relative.append(float(row[5]))
+            i += 1
+    return {
+        "solar_diff": solar_diff,
+        "temp_db": temp_db,
+        "solar_direct": solar_direct,
+        "wind_speed": wind_speed,
+        "wind_direction": wind_direction,
+        "humidity_relative": humidity_relative,
+    }
+
+def weather_v2(file_path):
+    """Read ESP-r ascii weather file.
+    """
+    solar_diff = []
+    temp_db = []
+    solar_direct = []
+    wind_speed = []
+    wind_direction = []
+    humidity_relative = []
+    header_lines = 15
+    with open(file_path, "r") as csvfile:
+        data = csv.reader(csvfile, delimiter=",")
+        for _ in range(header_lines):
+            next(data, None)
+        i = 0
+        for row in data:
+            if (i % 25) != 24:
+                solar_diff.append(float(row[1]))
+                temp_db.append(float(row[0]) / 10.0)
+                solar_direct.append(float(row[2]))
+                wind_speed.append(float(row[3]) / 10.0)
+                wind_direction.append(float(row[4]))
+                humidity_relative.append(float(row[5]))
+            i += 1
+    return {
+        "solar_diff": solar_diff,
+        "temp_db": temp_db,
+        "solar_direct": solar_direct,
+        "wind_speed": wind_speed,
+        "wind_direction": wind_direction,
+        "humidity_relative": humidity_relative,
+    }

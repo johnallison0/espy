@@ -329,7 +329,8 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
 def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
     """Get overheating statistics."""
     # Read cfg file for list of zones
-    _, _, _, _, _, _, zones = get.config(cfg_file)
+    cfg = get.config(cfg_file)
+    zones = cfg["zones"]
 
     # Get overheating stats from ESP-r to temporary file
     cmd = [
@@ -375,10 +376,10 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
 
     # remove temporary CSV file
     # Handle errors while calling os.remove()
-    try:
-        os.remove("temp.csv")
-    except:
-        print("Error while deleting file ", "temp.csv")
+    # try:
+    #     os.remove("temp.csv")
+    # except:
+    #     print("Error while deleting file ", "temp.csv")
 
     # Calculate total number of hours
     total_hours = float(data[0][6]) + float(data[0][7])
@@ -387,7 +388,7 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
     overheating_frequency = []
     for zone in data:
         overheating_frequency.append(
-            [zone[0], round(float(zone[6]) / total_hours * 100, 1)]
+            [zone[0], float(zone[6]), round(float(zone[6]) / total_hours * 100, 1)]
         )
 
     # Write back out to CSV that can be parsed by HighCharts
@@ -402,19 +403,26 @@ def overheating_stats(cfg_file, res_file, out_file=None, query_point=25):
     return overheating_frequency
 
 
-def energy_balance(cfg_file, res_file, out_file=None):
+def energy_balance(cfg_file, res_file, out_file=None, group=None):
     """Get zone energy balance."""
     # Read cfg file for list of zones
-    _, _, _, _, _, _, zones = get.config(cfg_file)
+    cfg = get.config(cfg_file)
+    zones = cfg["zones"]
 
     # Get zone energy balance from ESP-r to temporary file
-    cmd = ["", "d", ">", "temp.csv", "", "^", "e", "h", "b", "b", ">", "-", "-"]
-    cmd = "\n".join(cmd)
+    cmd_open = ["", "d", ">", "temp.csv", "", "^", "e"]
+    if group:
+        cmd_group = ["4", "!", group, "-"]
+    else:
+        cmd_group = []
+    cmd_zone_bal = ["h", "b", "b", ">", "-", "-"]
+    cmd = "\n".join(cmd_open + cmd_group + cmd_zone_bal)
     run(
         ["res", "-file", res_file, "-mode", "script"],
         stdout=PIPE,
         input=cmd,
         encoding="ascii",
+        check=True,
     )
 
     # Read CSV from ESP-r
@@ -449,6 +457,10 @@ def energy_balance(cfg_file, res_file, out_file=None):
         # Also, when 'No plant input/extract' i.e. zone[13] will be length 1.
         zone_gains.append([float(x[1]) if len(x) == 3 else 0 for x in zone])
         zone_losses.append([float(x[2]) if len(x) == 3 else 0 for x in zone])
+
+    # If taking a subset of all the zones (i.e. via groups), then remove the empty results
+    zone_gains = [x for x in zone_gains if x != []]
+    zone_losses = [x for x in zone_losses if x != []]
 
     # Sum across all zones
     total_gains = ["Gain"] + [round(sum(x), 1) for x in zip(*zone_gains)]

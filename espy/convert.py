@@ -1,6 +1,8 @@
 """Functions to convert between various file formats.
 """
 
+import subprocess
+
 from espy import get
 
 # pylint: disable-msg=C0103
@@ -55,3 +57,14 @@ def zone_to_predef_entity(geo_file, name, desc, category):
         the_file.write("#\n")
         # the_file.write(f"*vobject,{name},{desc},{len(self.vis)},{','.join([v[8] for v in self.vis])}")
         the_file.write("*end_item")
+
+
+def epw_to_espr(epw_file, espr_file="newclim"):
+    """Convert EPW file to ESP-r binary weather file.
+    """
+
+    cmd = ["*", espr_file, "k", "a", epw_file, "-"]
+    cmd = "\n".join(cmd)
+    subprocess.run(
+        ["clm", "-mode", "script"], stdout=subprocess.PIPE, input=cmd, encoding="ascii", check=True
+    )
