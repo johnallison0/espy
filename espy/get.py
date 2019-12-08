@@ -632,7 +632,8 @@ def constructions(con_file, geo_file):
         n_layers_con.append([int(con_data[i][0].split(",")[0])] + [int(con_data[i][1])])
     total_layers = sum([x[0] for x in n_layers_con])
 
-    # The start of the construction data is dependent on the number of constructions with air gaps in the zone
+    # The start of the construction data is dependent on the number of constructions
+    # with air gaps in the zone
     # i.e. n_surfaces + n_surf_with_airgaps = start index of construction layers
     n_con_air_gaps = sum([1 if x[1] > 0 else 0 for x in n_layers_con])
 
@@ -690,7 +691,7 @@ def constructions(con_file, geo_file):
         a_in = a_in[:-1]
         a_in += con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
     a_in = [float(x) for x in a_in]
-    
+
     j += 1
     a_out = con_data[n_cons + n_con_air_gaps + total_layers + j][0].split(",")
     while a_out[-1] == "":
@@ -705,7 +706,7 @@ def constructions(con_file, geo_file):
         for j, _ in enumerate(con_props):
             if j == 0:
                 layer_therm_props[i][j] += [e_out[i], a_out[i]]
-            elif j == (len(con_props)-1):
+            elif j == (len(con_props) - 1):
                 layer_therm_props[i][j] += [e_in[i], a_in[i]]
             else:
                 layer_therm_props[i][j] += [None, None]
@@ -798,8 +799,8 @@ def weather(file_path):
     col 1: Diffuse solar on the horizontal (W/m^2)
     col 2: External dry bulb temperature   (Tenths °C)
     col 3: Direct normal solar intensity   (W/m^2)
-    col 4: Prevailing wind speed           (Tenths m/s) 
-    col 5: Wind direction                  (clockwise ° from north) 
+    col 4: Prevailing wind speed           (Tenths m/s)
+    col 5: Wind direction                  (clockwise ° from north)
     col 6: Relative humidity               (%)
 
     """
@@ -832,6 +833,7 @@ def weather(file_path):
         "wind_direction": wind_direction,
         "humidity_relative": humidity_relative,
     }
+
 
 def weather_v2(file_path):
     """Read ESP-r ascii weather file.
