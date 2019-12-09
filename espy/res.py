@@ -299,29 +299,30 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     cmd = "\n".join(cmd)
     # print(cmd)
     res = run(
-        ["res", "-file", res_file, "-mode", "script"], stdout=PIPE, stderr=PIPE, input=cmd, encoding="ascii"
+        ["res", "-file", res_file, "-mode", "script"], input=cmd, stdout=PIPE, stderr=PIPE, encoding="ascii"
     )
 
     header_lines = 4
-    with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
-        reader = csv.reader(infile)
-        writer = csv.writer(outfile)
-        line_count = 1
-        for row in reader:
-            if line_count < header_lines:
-                pass
-            elif line_count == header_lines:
-                newrow = ["Time"] + row[1:]
-                writer.writerow(newrow)
-            else:
-                newrow = row
-                writer.writerow(newrow)
-            line_count += 1
-    os.remove("temp.csv")
+    if out_file:
+        with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
+            reader = csv.reader(infile)
+            writer = csv.writer(outfile)
+            line_count = 1
+            for row in reader:
+                if line_count < header_lines:
+                    pass
+                elif line_count == header_lines:
+                    newrow = ["Time"] + row[1:]
+                    writer.writerow(newrow)
+                else:
+                    newrow = row
+                    writer.writerow(newrow)
+                line_count += 1
 
     data_frame = pandas.read_csv(
-        out_file, sep=",", header=0, index_col=0, parse_dates=True
+        "temp.csv", sep=",", header=3, index_col=0, parse_dates=True
     )
+    os.remove("temp.csv")
 
     return data_frame
 
