@@ -5,7 +5,7 @@ from subprocess import PIPE, run
 def run_preset(cfg_file, preset):
     """Run simulation with preset."""
     bps = run(
-        ["bps", "-file", cfg_file, "-mode", "script", "-p", preset, "silent"], stdout=PIPE
+        ["bps", "-file", cfg_file, "-mode", "script", "-p", preset, "silent"], stdout=PIPE, stderr=PIPE
     )
     return bps
 

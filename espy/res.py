@@ -225,8 +225,8 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     perf_met = ["g"]
 
     res_select = []
-    zone_select = []
     for item in param_list:
+        zone_select = []
         zone_input = item[0]
         metric_input = item[1]
         # ---------------------------------
@@ -299,7 +299,7 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     cmd = "\n".join(cmd)
     # print(cmd)
     res = run(
-        ["res", "-file", res_file, "-mode", "script"], input=cmd, encoding="ascii"
+        ["res", "-file", res_file, "-mode", "script"], stdout=PIPE, stderr=PIPE, input=cmd, encoding="ascii"
     )
 
     header_lines = 4
@@ -400,9 +400,14 @@ def abovebelow(cfg_file, res_file, is_below=False, out_file=None, query_point=25
 
     # Write back out to CSV
     if out_file is not None:
+        if is_below:
+            header_comment = [f"# Underheating (<{query_point} °C) metrics per zone."]
+        else:
+            header_comment = [f"# Overheating (>{query_point} °C) metrics per zone."]
         headers = ["Zone", "Time (h)", "Frequency (%)"]
         with open(out_file, "w", newline="") as write_file:
             writer = csv.writer(write_file)
+            writer.writerow(header_comment)
             writer.writerow(headers)
             for row in output:
                 writer.writerow(row)
