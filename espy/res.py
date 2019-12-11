@@ -299,12 +299,18 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     cmd = "\n".join(cmd)
     # print(cmd)
     res = run(
-        ["res", "-file", res_file, "-mode", "script"], input=cmd, stdout=PIPE, stderr=PIPE, encoding="ascii"
+        ["res", "-file", res_file, "-mode", "script"],
+        input=cmd,
+        stdout=PIPE,
+        stderr=PIPE,
+        encoding="ascii",
     )
 
     header_lines = 4
     if out_file:
-        with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
+        with open("temp.csv", "r") as infile, open(
+            out_file, "w", newline=""
+        ) as outfile:
             reader = csv.reader(infile)
             writer = csv.writer(outfile)
             line_count = 1
@@ -488,3 +494,36 @@ def energy_balance(cfg_file, res_file, out_file=None, group=None):
             writer.writerow(total_losses[0:-1])
 
     return [headers[1:], total_gains[1:], total_losses[1:], zone_gains, zone_losses]
+
+
+def get_pv(res_file, elr_file, out_file=None):
+    """Get PV output."""
+    cmd = [
+        "",
+        "g",
+        elr_file,
+        "b",
+        ">",
+        out_file,
+        "^",
+        "e",
+        "*",
+        "a",
+        "c",
+        "b",
+        "-",
+        "!",
+        ">",
+        "-",
+        "-",
+        "-",
+    ]
+    cmd = "\n".join(cmd)
+    run(
+        ["res", "-file", res_file, "-mode", "script"],
+        stdout=PIPE,
+        stderr=PIPE,
+        input=cmd,
+        encoding="ascii",
+        check=True,
+    )
