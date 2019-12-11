@@ -66,5 +66,24 @@ def epw_to_espr(epw_file, espr_file="newclim"):
     cmd = ["*", espr_file, "k", "a", epw_file, "-"]
     cmd = "\n".join(cmd)
     subprocess.run(
-        ["clm", "-mode", "script"], stdout=subprocess.PIPE, input=cmd, encoding="ascii", check=True
+        ["clm", "-mode", "script"],
+        stdout=subprocess.PIPE,
+        input=cmd,
+        encoding="ascii",
+        check=True,
+    )
+
+
+def weather_bin_to_ascii(bin_file, ascii_file="newclim.a"):
+    """Convert ESP-r binary weather file to ascii file.
+    """
+
+    cmd = ["<", bin_file, "j", "a", ascii_file, "Y", "-"]
+    cmd = "\n".join(cmd)
+    subprocess.run(
+        ["clm", "-mode", "script"],
+        stdout=subprocess.PIPE,
+        input=cmd,
+        encoding="ascii",
+        check=True,
     )

@@ -34,7 +34,6 @@ def sed(pattern, replace, source, dest=None, count=0):
         count (int): number of occurrences to replace
         dest (str):   destination filename, if not given, source will be over written.
     """
-    # print(source)
     fin = open(source, "r")
     num_replaced = count
 

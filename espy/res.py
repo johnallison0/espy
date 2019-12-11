@@ -416,9 +416,14 @@ def abovebelow(cfg_file, res_file, is_below=False, out_file=None, query_point=25
 
     # Write back out to CSV
     if out_file is not None:
+        if is_below:
+            header_comment = [f"# Underheating (<{query_point} °C) metrics per zone."]
+        else:
+            header_comment = [f"# Overheating (>{query_point} °C) metrics per zone."]
         headers = ["Zone", "Time (h)", "Frequency (%)"]
         with open(out_file, "w", newline="") as write_file:
             writer = csv.writer(write_file)
+            writer.writerow(header_comment)
             writer.writerow(headers)
             for row in output:
                 writer.writerow(row)
@@ -498,3 +503,36 @@ def energy_balance(cfg_file, res_file, out_file=None, group=None):
             writer.writerow(total_losses[0:-1])
 
     return [headers[1:], total_gains[1:], total_losses[1:], zone_gains, zone_losses]
+
+
+def get_pv(res_file, elr_file, out_file=None):
+    """Get PV output."""
+    cmd = [
+        "",
+        "g",
+        elr_file,
+        "b",
+        ">",
+        out_file,
+        "^",
+        "e",
+        "*",
+        "a",
+        "c",
+        "b",
+        "-",
+        "!",
+        ">",
+        "-",
+        "-",
+        "-",
+    ]
+    cmd = "\n".join(cmd)
+    run(
+        ["res", "-file", res_file, "-mode", "script"],
+        stdout=PIPE,
+        stderr=PIPE,
+        input=cmd,
+        encoding="ascii",
+        check=True,
+    )
