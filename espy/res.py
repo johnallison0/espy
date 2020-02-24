@@ -188,7 +188,8 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
         "Tran surf conv @partns": ["f", "k"],
         "Total surface conv": ["f", "l"],
         # Surface flux
-        # <TBC> requires extra inputs from user
+        "conduction (inside)": ["g", "a", "-", "N"],
+        "convection (inside)": ["g", "b", "-", "N"],
         # Heat/cool/humidify
         "Sensible heating load": ["h", "a"],
         "Sensible cooling load": ["h", "b"],
@@ -203,6 +204,10 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
         "Aggregate humidification": ["h", "k"],
         # Zone RH
         "Zone RH": ["i"],
+        # Casual gains (more to complete)
+        "occupant convective": ["j", "f", "-"],
+        "lighting convective": ["j", "j", "-"],
+        "equipment convective": ["j", "n", "-"],
     }
 
     # Read cfg file for list of zones
@@ -289,6 +294,10 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
         # Select metric
         # If error in single selection, gets all zones (for now)
         res_select.append(res_dict[metric_input])
+        # Surface flux
+        if res_dict[metric_input][0] == "g":
+            surface_input = item[2]
+            res_select.append(surface_input + ["-"])
 
     # Flatten list
     res_select = list(itertools.chain.from_iterable(res_select))
