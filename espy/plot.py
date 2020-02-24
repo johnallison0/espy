@@ -6,12 +6,13 @@ Created on Tue May 14 13:10:01 2019
 """
 
 import itertools
+
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
-from wand.image import Image
 
 from espy import get
+from wand.image import Image
 
 # pylint: disable-msg=C0103
 

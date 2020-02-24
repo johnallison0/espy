@@ -10,6 +10,7 @@ espy/prj.py
 espy/res.py
 espy/utils.py
 espy/version.py
+espy/write.py
 espy.egg-info/PKG-INFO
 espy.egg-info/SOURCES.txt
 espy.egg-info/dependency_links.txt

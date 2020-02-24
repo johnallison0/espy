@@ -233,7 +233,8 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
         # Select all zones
         # ---------------------------------
         if zone_input == "all":
-            res_select.append(["4", "*", "-"])
+            # res_select.append(["4", "*", "-"])
+            res_select.append(["4", "*"])
         # ---------------------------------
         # Multiple zone selections
         # ---------------------------------

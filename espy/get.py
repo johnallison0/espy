@@ -6,12 +6,82 @@ from datetime import datetime
 from itertools import accumulate
 
 import numpy as np
-import vtk
 
+import vtk
 from espy.utils import space_data_to_list, split_to_float
 
 # pylint: disable-msg=C0103
 # pylint: disable=no-member
+
+def zone_selection(cfg_file, zone_input):
+    """Maps requested zone selection to ESP-r menu selection."""
+    # TODO: This will not work if zone on secondary page
+    # Read cfg file for list of zones
+    cfg = config(cfg_file)
+    zones = cfg["zones"]
+
+    # Loop through for list of zone names
+    zone_names = []
+    for ind, _ in enumerate(zones):
+        file_path = zones[ind][1]["geo"]
+        zone_names.append(geometry(file_path)["name"])
+
+    # format "id:<zone name>"
+    if zone_input[:3] == "id:":
+            selected_zone = zone_input[3:]
+            try:
+                ind = zone_names.index(selected_zone)
+                zone_select = chr(96 + ind + 1)
+                geo_file = zones[ind][1]["geo"]
+            except ValueError:
+                print("zone selection error, '{}' not found".format(selected_zone))
+                zone_select = None
+                geo_file = None
+    # Assume single letter selection if not prepended with id and len(1)
+    # TODO: can expand to check if this zone exists i.e. if asking for 'b' but there's only 1 zone...
+    elif len(zone_input) == 1:
+        zone_select = zone_input[0]
+        idx_zone = ord(zone_input[0]) - 96 - 1
+        geo_file = zones[idx_zone][1]["geo"]
+    else:
+        print(
+            "zone selection error for '{}', check input format".format(zone_input)
+        )
+        zone_select = None
+        geo_file = None
+    return zone_select, geo_file
+
+
+def surface_selection(geo_file, surf_input):
+    """Maps requested surface selection to ESP-r menu selection."""
+    # TODO: This will not work if surface on secondary page
+    geo = geometry(geo_file)
+    props = geo["props"]
+
+    # Loop through for list of zone names
+    surf_names = []
+    for surf in props:
+        surf_names.append(surf[0])
+
+    # format "id:<zone name>"
+    if surf_input[:3] == "id:":
+            selected_surf = surf_input[3:]
+            try:
+                ind = surf_names.index(selected_surf)
+                surf_select = chr(96 + ind + 1)
+            except ValueError:
+                print("surface selection error, '{}' not found".format(selected_surf))
+                surf_select = None
+    # Assume single letter selection if not prepended with id and len(1)
+    # TODO: can expand to check if this zone exists i.e. if asking for 'b' but there's only 1 zone...
+    elif len(surf_input) == 1:
+        surf_select = surf_input[0]
+    else:
+        print(
+            "surface selection error for '{}', check input format".format(surf_input)
+        )
+        surf_select = None
+    return surf_select
 
 
 def vtk_view(actors, edge_actors, outlines):
