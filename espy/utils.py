@@ -6,6 +6,15 @@ from shutil import move
 from tempfile import mkstemp
 
 
+def header(str_in, lvl=0):
+    header_format = {
+        0: "=" * 80 + f"\n {str_in}\n" + "=" * 80,
+        1: "-" * 40 + f"\n {str_in}\n" + "-" * 40,
+        2: "*" * 30 + f"\n {str_in}\n" + "*" * 30
+    }
+    return header_format.get(lvl, str_in)
+
+
 def split_to_float(string):
     """Transform CSV string into list of floats."""
     return [float(x) for x in string.split(",")]
