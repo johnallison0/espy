@@ -156,6 +156,93 @@ def rebuild_con_files(cfg_file):
     return prj
 
 
+def add_door(cfg_file, door_name, zone_surf1, zone_surf2, x_off, size):
+    """Adds door between two zones."""
+    width, height = size
+    zone1, surf1 = zone_surf1
+    zone2, surf2 = zone_surf2
+
+    z_sel1, geo_file1 = get.zone_selection(cfg_file, zone1)
+    z_sel2, geo_file2 = get.zone_selection(cfg_file, zone2)
+
+    # Insert opening
+    geoatt_menu = ["m", "c", "a"]
+    zone_select = [z_sel1]
+    insert = ["e", "+", "c"]
+    delete = ["e", "*"]
+    surf_select = [get.surface_selection(geo_file1, surf1)]
+    insert_type = ["b"]  # at base (door)
+    dimensions = [f"{str(x_off)} {str(width)} {str(height)}"]
+    add_from_another_zone = ["+", "e", "a"]
+    invert_and_repeat = ["e", "Y"]
+
+    # door properties
+    name = [door_name]
+    con = ["c", "d"]  # TODO: Add option to set construction (default to int_door)
+    usage = [
+        "a",
+        "-",
+        "b",
+    ]  # TODO: Add option to set usage (default DOOR NORMAL: undercut)
+
+    cmd = (
+        geoatt_menu
+        + zone_select
+        + insert
+        + surf_select
+        + insert_type
+        + dimensions
+        + name
+        + con
+        + usage
+        + ["Y"]
+        + ["-"] * 2
+        + ["Y"]
+        + ["-"] * 4
+    )
+    cmd = "\n".join(cmd)
+    
+    prj = run(
+        ["prj", "-mode", "script", "-file", cfg_file],
+        stdout=PIPE,
+        stderr=PIPE,
+        input=cmd,
+        encoding="ascii",
+        check=True,
+    )
+
+    cmd2 = (
+        geoatt_menu
+        + [z_sel2]
+        + delete
+        + [get.surface_selection(geo_file2, surf2)]
+        + ["-"]
+        + add_from_another_zone
+        + zone_select
+        + [get.surface_selection(geo_file1, surf1)]
+        + [get.surface_selection(geo_file1, "id:" + name[0])]
+        + ["-"]
+        + [surf1[3:] + "-"]  # TODO: If wall doesn't exist, then this isn't asked.
+        + invert_and_repeat
+        + ["-"] * 2
+        + ["Y"]
+        + ["-"] * 5
+    )
+    # print(get.surface_selection(geo_file1, name[0]))
+    cmd2 = "\n".join(cmd2)
+    # print(cmd)
+    prj2 = run(
+        ["prj", "-mode", "script", "-file", cfg_file],
+        stdout=PIPE,
+        stderr=PIPE,
+        input=cmd2,
+        encoding="ascii",
+        check=True,
+    )
+
+    return prj, prj2
+
+
 def add_window(cfg_file, zone, surf, location, size, sill=None, reveal=None):
     """Adds window to a surface in a zone."""
     x_off, z_off = location
@@ -175,8 +262,15 @@ def add_window(cfg_file, zone, surf, location, size, sill=None, reveal=None):
 
     # frame properties
     frame_name = ["frm_f"]  # TODO: Add option to set frame name
-    frame_con = ["e", "e"]  # TODO: Add option to set construction (default to U = 2 PVC)
-    frame_usage = ["b", "-", "a"]  # TODO: Add option to set usage (default FRAME FACADE: CLOSED)
+    frame_con = [
+        "e",
+        "e",
+    ]  # TODO: Add option to set construction (default to U = 2 PVC)
+    frame_usage = [
+        "b",
+        "-",
+        "a",
+    ]  # TODO: Add option to set usage (default FRAME FACADE: CLOSED)
 
     if sill is not None:
         temp_name = ["temp"]
@@ -244,25 +338,33 @@ def add_window(cfg_file, zone, surf, location, size, sill=None, reveal=None):
     if reveal is not None:
         geo = get.geometry(geo_file)  # re-read geo file with window added
         frame_corners = geo["edges"][n_surf][:3] + geo["edges"][n_surf][-1:]
-        ex_reveals = ["h", "a", "@", "c", chr(96 + n_surf + 1), "rev", str(reveal), "e", "e", "a", " ".join([str(i) for i in frame_corners]), ">"]
+        ex_reveals = [
+            "h",
+            "a",
+            "@",
+            "c",
+            chr(96 + n_surf + 1),
+            "rev",
+            str(reveal),
+            "e",
+            "e",
+            "a",
+            " ".join([str(i) for i in frame_corners]),
+            ">",
+        ]
 
-        cmd = (
-            geoatt_menu
-            + zone_select
-            + ex_reveals
-            + ["-"] * 5
-        )
+        cmd = geoatt_menu + zone_select + ex_reveals + ["-"] * 5
         cmd = "\n".join(cmd)
         # print(cmd)
 
         prj2 = run(
-                ["prj", "-mode", "script", "-file", cfg_file],
-                stdout=PIPE,
-                stderr=PIPE,
-                input=cmd,
-                encoding="ascii",
-                check=True,
-            )
+            ["prj", "-mode", "script", "-file", cfg_file],
+            stdout=PIPE,
+            stderr=PIPE,
+            input=cmd,
+            encoding="ascii",
+            check=True,
+        )
     else:
         prj2 = []
     return prj1, prj2
