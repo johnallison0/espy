@@ -140,13 +140,13 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
     """
     res_dict = {
         # Climate
-        "Ambient temperature": ["a", "a"],
-        "Solar Dir N": ["a", "b"],
-        "Solar diffuse": ["a", "c"],
-        "Wind speed": ["a", "d"],
-        "Wind direction": ["a", "e"],
-        "Ambient RH": ["a", "f"],
-        "Sky illuminance": ["a", "g"],
+        "Ambient temperature": ["a", "a",'-'],
+        "Solar Dir N": ["a", "b",'-'],
+        "Solar diffuse": ["a", "c",'-'],
+        "Wind speed": ["a", "d",'-'],
+        "Wind direction": ["a", "e",'-'],
+        "Ambient RH": ["a", "f",'-'],
+        "Sky illuminance": ["a", "g",'-'],
         # Temperatures
         "Zone db T": ["b", "a", "-"],
         "Zone db T - ambient db T": ["b", "b", "-"],
