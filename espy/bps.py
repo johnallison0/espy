@@ -1,4 +1,4 @@
-"""Functions to interact with res."""
+"""Functions to interact with bps."""
 from subprocess import PIPE, run
 
 

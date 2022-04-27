@@ -120,7 +120,7 @@ def air_supply(res_file, mfr_file, zones):
     return df
 
 
-def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
+def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt='DateTime'):
     """Extract results from results database to CSV.
 
     Args:
@@ -133,10 +133,10 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt=None):
             param_list = [[['id:roof_space', 'id:reception'], 'Zone db T']]
             param_list = [[['a', 'b'], 'Zone db T'], [['id:reception', 'b'], 'Wind direction']]
         out_file (optional): Name of exported CSV file.
-        time_fmt: Format of DateTime in exported CSV. Julian or DateTime
+        time_fmt (optional): Format of datetime in exported CSV. Julian or DateTime, default DateTime.
 
     Returns:
-        res: Console feedback from res.
+        res: DataFrame containing results.
     """
     res_dict = {
         # Climate
