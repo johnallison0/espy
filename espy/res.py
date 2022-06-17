@@ -7,6 +7,7 @@ from subprocess import PIPE, run
 import pandas
 
 from espy import get
+from espy.utils import dtparse_espr
 
 
 def calc_airtightness(res_file, mfr_file, volume, zones):
@@ -318,9 +319,7 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt='DateTim
 
     header_lines = 4
     if out_file:
-        with open("temp.csv", "r") as infile, open(
-            out_file, "w", newline=""
-        ) as outfile:
+        with open("temp.csv", "r") as infile, open(out_file, "w", newline="") as outfile:
             reader = csv.reader(infile)
             writer = csv.writer(outfile)
             line_count = 1
@@ -335,9 +334,15 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt='DateTim
                     writer.writerow(newrow)
                 line_count += 1
 
-    data_frame = pandas.read_csv(
-        "temp.csv", sep=",", header=3, index_col=0, parse_dates=True
-    )
+    if time_fmt == 'DateTime':
+        data_frame = pandas.read_csv(
+            "temp.csv", sep=",", header=3, index_col=0,
+            parse_dates=True, date_parser=dtparse_espr
+        )
+    else:
+        data_frame = pandas.read_csv(
+            "temp.csv", sep=",", header=3, index_col=0, parse_dates=True
+        )
     os.remove("temp.csv")
 
     return data_frame

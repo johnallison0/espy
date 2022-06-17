@@ -1,14 +1,9 @@
 """Functions for importing and reading ESP-r files"""
 import csv
-import math
-from collections import Counter
 from datetime import datetime
 from itertools import accumulate
-
-import numpy as np
-
-import vtk
-from espy.utils import space_data_to_list, split_to_float
+from espy.utils import space_data_to_list, split_to_float,area
+from espy import plot
 
 # pylint: disable-msg=C0103
 # pylint: disable=no-member
@@ -82,390 +77,6 @@ def surface_selection(geo_file, surf_input):
         )
         surf_select = None
     return surf_select
-
-
-def vtk_view(actors, edge_actors, outlines):
-    """VTK visualisation setup and render"""
-
-    # Setup camera and specify a particular viewpoint
-    camera = vtk.vtkCamera()
-    camera.SetFocalPoint(0, 0, 0)
-    camera.SetPosition(-100.0, -100.0, 100.0)
-    camera.SetViewUp(3.9, 3.4, 1.5)
-    camera.SetViewAngle(4.5)
-
-    # Create a renderer, render window, and interactor
-    renderer = vtk.vtkRenderer()
-    renderer.SetActiveCamera(camera)
-
-    renderWindow = vtk.vtkRenderWindow()
-    renderWindow.AddRenderer(renderer)
-    renderWindowInteractor = vtk.vtkRenderWindowInteractor()
-    renderWindowInteractor.SetRenderWindow(renderWindow)
-
-    # Add the actors to the scene
-    for actor, edge_actor, outline in zip(actors, edge_actors, outlines):
-        renderer.AddActor(actor)
-        renderer.AddActor(edge_actor)
-        renderer.AddActor(outline)
-    renderer.SetBackground(1, 1, 1)  # white bg
-
-    # Render and interact
-    renderWindow.Render()
-    renderWindowInteractor.GetInteractorStyle().SetCurrentStyleToTrackballCamera()
-    renderWindowInteractor.Start()
-
-
-def generate_vtk_actors(surf_obj, outer_colour, show_edges=False, show_outline=True):
-    """Generates 3 VTK actors.
-
-    Returns 3 VTK actors, which represents an object (geometry & properties) in a rendered scene
-
-    Args:
-        surf_obj (vtkObject): vtk Object that defines the surface
-        outer_colour (list): Colour and opacity of surface i.e. ["#f5f2d0", 1]
-
-    Returns:
-        surface_actor (vtkOpenGLActor): 2D component surface projected on 3D plane
-        edge_actor (vtkOpenGLActor): Mesh of surface
-        outline_actor (vtkOpenGLActor): Boundary outline of surface
-
-    """
-    colors = vtk.vtkNamedColors()
-
-    # Create a mapper and actor
-    mapper = vtk.vtkPolyDataMapper()
-    mapper.SetInputConnection(surf_obj.GetOutputPort())
-    surface_actor = vtk.vtkActor()
-    surface_actor.SetMapper(mapper)
-
-    # Get outline of surface
-    outline = vtk.vtkFeatureEdges()
-    outline.SetInputConnection(surf_obj.GetOutputPort())
-
-    # Get triangulation (mesh) of surface
-    extract = vtk.vtkExtractEdges()
-    extract.SetInputConnection(surf_obj.GetOutputPort())
-
-    # Define format of surface
-    surface_actor.GetProperty().SetColor(
-        [x / 255 for x in colors.HTMLColorToRGB(outer_colour[0])]
-    )
-    surface_actor.GetProperty().SetOpacity(outer_colour[1])
-
-    # Remove lighting, reflections etc.
-    surface_actor.GetProperty().SetAmbient(1.0)
-    surface_actor.GetProperty().SetDiffuse(0.0)
-    surface_actor.GetProperty().SetSpecular(0.0)
-
-    # Define format of mesh
-    if show_edges:
-        tubes = vtk.vtkTubeFilter()
-        tubes.SetInputConnection(extract.GetOutputPort())
-        tubes.SetRadius(0.02)
-        tubes.SetNumberOfSides(6)
-        mapEdges = vtk.vtkPolyDataMapper()
-        mapEdges.SetInputConnection(tubes.GetOutputPort())
-        edge_actor = vtk.vtkActor()
-        edge_actor.SetMapper(mapEdges)
-        edge_actor.GetProperty().SetColor(0, 0.643, 0.706)
-        edge_actor.GetProperty().SetSpecularColor(1, 1, 1)
-        edge_actor.GetProperty().SetSpecular(0.3)
-        edge_actor.GetProperty().SetSpecularPower(20)
-        edge_actor.GetProperty().SetAmbient(0.2)
-        edge_actor.GetProperty().SetDiffuse(0.8)
-    else:
-        edge_actor = None
-
-    # Define format of outline
-    if show_outline:
-        outline.SetFeatureEdges(False)
-        # ManifoldEdgesOff, NonManifoldEdgesOff, BoundaryEdgesOn
-        outline.ColoringOff()
-        outline_tubes = vtk.vtkTubeFilter()
-        outline_tubes.SetInputConnection(outline.GetOutputPort())
-        outline_tubes.SetRadius(0.02)
-        outline_tubes.SetNumberOfSides(6)
-        outline_mapEdges = vtk.vtkPolyDataMapper()
-        outline_mapEdges.SetInputConnection(outline_tubes.GetOutputPort())
-        outline_actor = vtk.vtkActor()
-        outline_actor.SetMapper(outline_mapEdges)
-        outline_actor.GetProperty().SetColor(0, 0, 0)
-        outline_actor.GetProperty().SetSpecularColor(1, 1, 1)
-        outline_actor.GetProperty().SetSpecular(0.3)
-        outline_actor.GetProperty().SetSpecularPower(20)
-        outline_actor.GetProperty().SetAmbient(0.2)
-        outline_actor.GetProperty().SetDiffuse(0.8)
-    else:
-        outline_actor = None
-
-    return surface_actor, edge_actor, outline_actor
-
-
-class Component:
-    """Class defining zone component."""
-
-    def __init__(self, property_list, vertices_surf):
-        self.name = property_list[0]
-        self.position = property_list[1]
-        if property_list[2] != "-":
-            self.child = property_list[2]
-        else:
-            self.child = None
-        self.usage = []
-        if property_list[3] != "-":
-            self.usage.append(property_list[3])
-            self.usage.append(property_list[4])
-        else:
-            self.usage = None
-        self.construction = property_list[5]
-        self.optical_type = property_list[6]
-        self.boundary = []
-        self.boundary.append(property_list[7])
-        self.boundary.append(property_list[8])
-        self.boundary.append(property_list[9])
-        self.vertices_surf = vertices_surf
-
-    def generate_vtk_surface(self):
-        """Generate building component surface as a VTK objects"""
-        # Check for duplicate vertices
-        dups = [
-            k for k, v in Counter(tuple(x) for x in self.vertices_surf).items() if v > 1
-        ]
-        if not dups:
-            # Normal surface without holes
-
-            # Setup points
-            points = vtk.vtkPoints()
-            for vertex in self.vertices_surf:
-                points.InsertNextPoint(vertex[0], vertex[1], vertex[2])
-
-            # Create the polygon
-            polygon = vtk.vtkPolygon()
-            polygon.GetPointIds().SetNumberOfIds(
-                len(self.vertices_surf)
-            )  # make a polygon
-            for i, _ in enumerate(self.vertices_surf):
-                polygon.GetPointIds().SetId(i, i)
-
-            # Add the polygon to a list of polygons
-            polygons = vtk.vtkCellArray()
-            polygons.InsertNextCell(polygon)
-
-            # Create a PolyData
-            polygonPolyData = vtk.vtkPolyData()
-            polygonPolyData.SetPoints(points)
-            polygonPolyData.SetPolys(polygons)
-
-            # Filter the polydata for concave polygons
-            surf_obj = vtk.vtkTriangleFilter()
-            surf_obj.SetInputData(polygonPolyData)
-        else:
-            # Assume surface is a 'weakly simple polygon' due to duplicate vertices
-            # get indices of duplicates [O(n^2) solution...]
-            d = [
-                i
-                for i, x in enumerate(self.vertices_surf)
-                if self.vertices_surf.count(x) > 1
-            ]
-            # print(d)
-            # split into 2 polygons (or len(d)/4 polygons...)
-            # vertices_surf_outer = self.vertices_surf[: d[1]] + self.vertices_surf[d[3] + 1 :]
-            vertices_surf_outer = (
-                self.vertices_surf[: d[0] + 1] + self.vertices_surf[d[-1] + 1 :]
-            )
-            # vertices_surf_inner = self.vertices_surf[d[1] : d[2]]
-            vertices_surf_inner = self.vertices_surf[d[1] : d[2] + 1] + [
-                self.vertices_surf[d[6] - 1]
-            ]
-            vertices_surf_inner2 = self.vertices_surf[d[3] : d[4]]
-            print(vertices_surf_outer)
-            print(vertices_surf_inner)
-
-            # Figure out if surface is reversed
-            # If the normal of the outer polygon points in a negative direction
-            # then the polygons need to be reversed to draw in the correct order
-            # print(self.name)
-            print(calculate_normal(vertices_surf_outer))
-            print(calculate_normal(vertices_surf_inner))
-            print(calculate_normal(vertices_surf_inner2))
-            if any(t < 0 for t in calculate_normal(vertices_surf_outer)):
-                vertices_surf_outer.reverse()
-                vertices_surf_inner.reverse()
-                vertices_surf_inner2.reverse()
-
-            # Setup points
-            points = vtk.vtkPoints()
-            for i, vertex in enumerate(vertices_surf_outer):
-                points.InsertPoint(i, vertex[0], vertex[1], vertex[2])
-            for i, vertex in enumerate(vertices_surf_inner):
-                points.InsertPoint(
-                    i + len(vertices_surf_outer), vertex[0], vertex[1], vertex[2]
-                )
-            for i, vertex in enumerate(vertices_surf_inner2):
-                points.InsertPoint(
-                    i + len(vertices_surf_outer) + len(vertices_surf_inner),
-                    vertex[0],
-                    vertex[1],
-                    vertex[2],
-                )
-
-            # Setup polygons
-            polys = vtk.vtkCellArray()
-            polys.InsertNextCell(len(vertices_surf_outer))
-            for i, vertex in enumerate(vertices_surf_outer):
-                polys.InsertCellPoint(i)
-            polys.InsertNextCell(len(vertices_surf_inner))
-            for i, vertex in enumerate(vertices_surf_inner):
-                polys.InsertCellPoint(i + len(vertices_surf_outer))
-            polys.InsertNextCell(len(vertices_surf_inner2))
-            for i, vertex in enumerate(vertices_surf_inner2):
-                polys.InsertCellPoint(
-                    i + len(vertices_surf_outer) + len(vertices_surf_inner)
-                )
-
-            polyData = vtk.vtkPolyData()
-            polyData.SetPoints(points)
-            polyData.SetPolys(polys)
-
-            # Notice this trick. The SetInput() method accepts a vtkPolyData that
-            # is also the input to the Delaunay filter. The points of the
-            # vtkPolyData are used to generate the triangulation; the polygons are
-            # used to create a constraint region. The polygons are very carefully
-            # created and ordered in the right direction to indicate inside and
-            # outside of the polygon.
-            surf_obj = vtk.vtkDelaunay2D()
-
-            # The input to the Delaunay2D filter is a list of points specified in 3D
-            # even though the triangulation is 2D.
-            # Thus the triangulation is constructed in the x-y plane, and the z coordinate
-            #  is ignored (although carried through to the output).
-            # Need to compute the best-fitting plane to the set of points, project the points
-            # and that plane and then perform the triangulation using their projected positions
-            # and then use it as the plane in which the triangulation is performed.
-            # Look into vtkContourTriangulator as well.
-
-            surf_obj.SetInputData(polyData)
-            surf_obj.SetSourceData(polyData)
-            surf_obj.SetProjectionPlaneMode(vtk.VTK_BEST_FITTING_PLANE)
-
-        return surf_obj
-
-    def set_outer_colour(self):
-        """Set default colour of otherside surface based on boundary conditions.
-        """
-        default_colours = {
-            "OPAQUE_ANOTHER": ["#F8F4FF", 1],
-            "OPAQUE_ANOTHER_DOOR": ["#f5f2d0", 1],
-            "OPAQUE_ANOTHER_PARTN": ["#F8F4FF", 1],
-            "OPAQUE_ANOTHER_GRILL": ["#c19a6b", 1],
-            "OPAQUE_EXTERIOR": ["#afacac", 1],
-            "OPAQUE_EXTERIOR_WALL": ["#afacac", 1],
-            "OPAQUE_EXTERIOR_ROOF": ["#afacac", 1],
-            "OPAQUE_EXTERIOR_DOOR": ["#c19a6b", 1],
-            "OPAQUE_EXTERIOR_FRAME": ["#c19a6b", 1],
-            "OPAQUE_EXTERIOR_GRILL": ["#c19a6b", 1],
-            "TRANSP_EXTERIOR_WINDOW": ["#008db0", 0.2],
-            "OPAQUE_GROUND": ["#654321", 1],
-            "OPAQUE_SIMILAR": ["#d8e4bc", 1],
-            "OPAQUE_SIMILAR_DOOR": ["#f5f2d0", 1],
-            "OPAQUE_SIMILAR_GRILL": ["#c19a6b", 1],
-            "OPAQUE_SIMILAR_PARTN": ["#d8e4bc", 1],
-            "TRANSP_SIMILAR": [" #0000FF", 0.2],
-            "TRANSP_ANOTHER_FICT": [" #0000FF", 0.2],
-            "TRANSP_ANOTHER_WINDOW": [" #008db0", 0.2],
-        }
-
-        # Get optical _type_
-        if self.optical_type == "OPAQUE":
-            optics = "OPAQUE"
-        else:
-            optics = "TRANSP"
-
-        # Construct name for outer surface type
-        if self.usage:
-            if "WINDOW" in self.usage[0]:
-                general_usage = "WINDOW"
-            elif "FRAME" in self.usage[0]:
-                general_usage = "FRAME"
-            elif "DOOR" in self.usage[0]:
-                general_usage = "DOOR"
-            else:
-                general_usage = self.usage[0]
-            boundary_type = "_".join([optics, self.boundary[0], general_usage])
-        else:
-            boundary_type = "_".join([optics, self.boundary[0]])
-
-        # Lookup name in colour dictionary
-        # default to red if not available in default colour dictionary
-        surf_colour = default_colours.get(boundary_type)
-        if surf_colour is None:
-            print(
-                "Unable to find default colour for component {} of type {}.".format(
-                    self.name, boundary_type
-                ),
-                end="",
-            )
-            print(" Setting default colour to red.")
-            surf_colour = ["#ff0000", 1]
-
-        return surf_colour
-
-
-def calculate_normal(p):
-    """
-    Newell's method for calculating the normal of an arbitrary 3D polygon.
-    """
-    normal = [0, 0, 0]
-    for i, _ in enumerate(p):
-        j = (i + 1) % len(p)
-        normal[0] += (p[i][1] - p[j][1]) * (p[i][2] + p[j][2])
-        normal[1] += (p[i][2] - p[j][2]) * (p[i][0] + p[j][0])
-        normal[2] += (p[i][0] - p[j][0]) * (p[i][1] + p[j][1])
-    # normalise
-    nn = [0, 0, 0]
-    nn[0] = normal[0] / math.sqrt(
-        (normal[0]) ** 2 + (normal[1]) ** 2 + (normal[2]) ** 2
-    )
-    nn[1] = normal[1] / math.sqrt(
-        (normal[0]) ** 2 + (normal[1]) ** 2 + (normal[2]) ** 2
-    )
-    nn[2] = normal[2] / math.sqrt(
-        (normal[0]) ** 2 + (normal[1]) ** 2 + (normal[2]) ** 2
-    )
-    return nn
-
-
-def area(poly):
-    """area of polygon poly
-    Source: https://stackoverflow.com/a/12643315
-    Source 2: http://geomalgorithms.com/a01-_area.html#3D%20Polygons
-    TODO(j.allison): this function should probably live in a different module
-    """
-
-    def cross(a, b):
-        """cross product of vectors a and b."""
-        x = a[1] * b[2] - a[2] * b[1]
-        y = a[2] * b[0] - a[0] * b[2]
-        z = a[0] * b[1] - a[1] * b[0]
-        return (x, y, z)
-
-    if len(poly) < 3:  # not a plane - no area
-        return 0
-
-    total = [0, 0, 0]
-    for i, _ in enumerate(poly):
-        vi1 = poly[i]
-        if i is len(poly) - 1:
-            vi2 = poly[0]
-        else:
-            vi2 = poly[i + 1]
-        prod = cross(vi1, vi2)
-        total[0] += prod[0]
-        total[1] += prod[1]
-        total[2] += prod[2]
-    result = np.linalg.norm(total)
-    return round(result / 2, 3)
 
 
 def _read_file(filepath):
@@ -636,6 +247,7 @@ def geometry(filepath):
     vertices = []
     edges = []
     props = []
+    child_verts = []
     for x in file2:
         if x[0] == "*vertex":
             vertices.append([float(y) for y in x[1].split(",")])
@@ -644,12 +256,25 @@ def geometry(filepath):
             edges.append([int(y) for y in dat[1].split(",")])
         elif x[0] == "*surf":
             props.append(x[1].split(","))
+        child_verts.append(None)
+
+    # Assemble lists of child vertices for each surface.
+    for i, prop in enumerate(props):
+        if prop[2] != '-':
+            try:
+                iParent = [a[0] for a in props].index(prop[2])
+            except ValueError:
+                print('Warning: parent surface '+prop[2]+' for child '+prop[0]+' does not exist')
+            else:
+                if not child_verts[iParent]:
+                    child_verts[iParent] = []
+                child_verts[iParent].append(pos_from_vert_num_list(vertices,edges[i]))
 
     areas = []
     components = []
     for i, surface in enumerate(edges):
         vertices_surf_i = pos_from_vert_num_list(vertices, surface)
-        components.append(Component(props[i], vertices_surf_i))
+        components.append(plot.Component(props[i], child_verts[i], vertices_surf_i))
         areas.append(area(vertices_surf_i))
 
     # get base area
@@ -717,7 +342,7 @@ def constructions(con_file, geo_file):
         else:
             air_gap_props.append(
                 [int(air_gap_data[j][0].split(",")[0])]
-                + split_to_float(air_gap_data[j][1][:-1])
+                + [float(a) for a in air_gap_data[j][1][:-1].split()]
             )
             j += 1
 
@@ -937,3 +562,54 @@ def weather_v2(file_path):
         "wind_direction": wind_direction,
         "humidity_relative": humidity_relative,
     }
+
+    
+def zone_to_predef_entity(geo_file, name, desc, category):
+    """Convert a zone geometry file to a predefined entity entry.
+
+    Args:
+        geo_file: ESP-r geometry file.
+
+    Returns:
+        A text file that can be copied into an ESP-r predefined entities
+        database.
+    """
+    # TODO(j.allison): Process visual entities
+    # TODO(j.allison): Shift x,y,z to (0,0,0) origin
+
+    geo = geometry(geo_file)
+    all_vertices = geo["vertices"]
+    props = geo["props"]
+    surfaces = geo["edges"]
+    vx = [v[0] for v in all_vertices]
+    vy = [v[1] for v in all_vertices]
+    vz = [v[2] for v in all_vertices]
+    size = (max(vx) - min(vx), max(vy) - min(vy), max(vz) - min(vz))
+
+    out_file = f"{name}.txt"
+    with open(out_file, "w+") as the_file:
+        the_file.write(f"*item,{name},{desc} # tag name menu entry\n")
+        the_file.write(f"*incat,{category}           \n")
+        the_file.write("*sourced,Custom built.\n")
+        the_file.write("*origin,0.0,0.0,0.0  # local origin\n")
+        the_file.write(
+            f"*bounding_box,  {size[0]:.3f}  {size[1]:.3f}  {size[2]:.3f}  # extents of object\n"
+        )
+        the_file.write("*Text\n")
+        the_file.write(f"{desc}\n")
+        the_file.write("*End_text\n")
+        the_file.write("#\n")
+        for i, vertex in enumerate(all_vertices):
+            the_file.write(
+                f"*vertex,{vertex[0]:.5f},{vertex[1]:.5f},{vertex[2]:.5f}  #   {i + 1}\n"
+            )
+        the_file.write("#\n")
+        for i, (s, p) in enumerate(zip(surfaces, props)):
+            the_file.write(
+                f"*mass,{p[0]},{p[5]},OPAQUE,{len(s)},"
+                + "  ".join(map(str, s))
+                + f"  #   {i + 1}\n"
+            )
+        the_file.write("#\n")
+        # the_file.write(f"*vobject,{name},{desc},{len(self.vis)},{','.join([v[8] for v in self.vis])}")
+        the_file.write("*end_item")
