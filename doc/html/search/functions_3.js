@@ -1,7 +1,6 @@
 var searchData=
 [
-  ['edit_5flayer_5fthickness',['edit_layer_thickness',['../namespaceespy_1_1prj.html#a503b8380e404b72328a269cf1074cc38',1,'espy::prj']]],
-  ['edit_5fmaterial_5fprop',['edit_material_prop',['../namespaceespy_1_1prj.html#a340d8691e099991e1a6e4e34e6347b8a',1,'espy::prj']]],
-  ['energy_5fbalance',['energy_balance',['../namespaceespy_1_1res.html#a4b20b2d1c0c095ffa7370c28dc3df9d1',1,'espy::res']]],
-  ['epw_5fto_5fespr',['epw_to_espr',['../namespaceespy_1_1convert.html#accd52eb5d434e1d0057335b3457e87da',1,'espy::convert']]]
+  ['dist',['dist',['../namespaceespy_1_1plot.html#a14b71c406475205eed3fcac9fca9fdaf',1,'espy::plot']]],
+  ['door_5fusage',['door_usage',['../namespaceespy_1_1edit.html#aab404d0bf24727d69c4c8992fe9d84c8',1,'espy::edit']]],
+  ['dtparse_5fespr',['dtparse_espr',['../namespaceespy_1_1utils.html#a6be93e01c06bb2bfcd726ac2b03d0019',1,'espy::utils']]]
 ];

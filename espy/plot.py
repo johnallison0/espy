@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
+"""@package plot
 Functions for visualising ESP-r models.
 
 Note that the pyplot functions in here are quick, but 3D plots may not display
@@ -10,7 +9,6 @@ slower but more robust, and requires an OpenGL implementation.
 This is a work in progress.
 """
 
-from audioop import add
 import itertools
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,8 +22,7 @@ import vtk
 # pylint: disable-msg=C0103
 
 def set_axes_radius(ax, origin, radius):
-    """
-    Set axes radius.
+    """Set axes radius.
 
     Arguments
         ax: matplotlib.axes.Axes
@@ -46,7 +43,9 @@ def set_axes_radius(ax, origin, radius):
 
 
 def set_axes_equal(ax):
-    """Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    """Set all axes equal.
+    
+    Make axes of 3D plot have equal scale so that spheres appear as spheres,
     cubes as cubes, etc..  This is one possible solution to Matplotlib's
     ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
 
@@ -66,8 +65,8 @@ def set_axes_equal(ax):
 
 
 def set_axes_limits(ax, lims):
-    """
-    Set axis limits.
+    """Set axis limits.
+
     Call set_axes_equal after this function to ensure objects display correctly.
 
     Arguments
@@ -87,8 +86,10 @@ def set_axes_limits(ax, lims):
 
 
 def cuboid_data(o, size=(1, 1, 1)):
-    """
-    Calculate cuboid data from origin and size.
+    """Calculate cuboid data from origin and size.
+
+    Code taken from:
+    https://stackoverflow.com/a/35978146/4124317
 
     Arguments
         o: list or tuple (3), float
@@ -112,8 +113,6 @@ def cuboid_data(o, size=(1, 1, 1)):
         float
             thickness (volume / largest face area)
     """
-    # code taken from
-    # https://stackoverflow.com/a/35978146/4124317
     # suppose axis direction: x: to left; y: to inside; z: to upper
     # get the length, width, and height
     l, w, h = size
@@ -169,8 +168,7 @@ def cuboid_data(o, size=(1, 1, 1)):
 
 
 def plot_cuboid(pos=(0., 0., 0.), size=(1., 1., 1.), ax=None, **kwargs):
-    """
-    Plot a cuboid element.
+    """Plot a cuboid element.
     
     Arguments
         pos: list or tuple (3), float
@@ -193,7 +191,8 @@ def plot_cuboid(pos=(0., 0., 0.), size=(1., 1., 1.), ax=None, **kwargs):
 
 
 def plot_predef_ents(vis, vertices):
-    """
+    """Plot predefined entity.
+
     Create 3D figure and plot visual entities and mass surfaces, 
     for example for predefined entity, with pyplot.
     Displays plot and will pause until user closes it.
@@ -227,8 +226,7 @@ def plot_predef_ents(vis, vertices):
 
 
 def plot_zone_surface(vertices, ax=None, facecolour=None, alpha=0.2):
-    """
-    Plots a surface with pyplot.
+    """Plots a surface with pyplot.
 
     Arguments
         vertices: list, list (3), float
@@ -273,8 +271,7 @@ def plot_zone_surface(vertices, ax=None, facecolour=None, alpha=0.2):
 
 
 def plot_zone(geo_file, ax=None, show_roof=True):
-    """
-    Plot zone geometry with pyplot.
+    """Plot zone geometry with pyplot.
 
     Arguments
         geo_file: string
@@ -348,8 +345,7 @@ def plot_zone(geo_file, ax=None, show_roof=True):
 
 
 def plot_construction(con_data, vertices_surf, ax=None):
-    """
-    Plot 3D construction.
+    """Plot 3D construction.
     
     Arguments
         con_data: list, list
@@ -398,10 +394,9 @@ def plot_construction(con_data, vertices_surf, ax=None):
 
 
 def construction_schematic(
-    constr_name, constr_data, air_gap_data, figsize=(3.54, 2.655), savefig=False
-):
-    """
-    Plot 2D construction schematic.
+    constr_name, constr_data, air_gap_data, figsize=(3.54, 2.655), savefig=False):
+    """Plot 2D construction schematic.
+
     If the figure is saved, uses wand module (ImageMagick)
     to trim whitespace from the image.
 
@@ -482,8 +477,7 @@ def construction_schematic(
 
 
 def plot_zone_constructions(con_file, geo_file, ax=None):
-    """
-    Plot all zone constructions in 3D.
+    """Plot all zone constructions in 3D.
 
     Arguments
         con_file: string
@@ -511,8 +505,7 @@ def plot_zone_constructions(con_file, geo_file, ax=None):
 
 
 def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=True):
-    """
-    Plot a particular surface construction in 3D.
+    """Plot a particular surface construction in 3D.
 
     This function plots a 3D building component (wall, floor, roof etc.)
     from its surface geometry and construction data.
@@ -622,8 +615,7 @@ def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=
 
             
 def vtk_view(actors, edge_actors, outlines):
-    """
-    VTK visualisation setup and render.
+    """VTK visualisation setup and render.
     
     Arguments
         actors: list, vtk.vtkOpenGLActor
@@ -681,8 +673,7 @@ def vtk_view(actors, edge_actors, outlines):
 
 
 def generate_vtk_actors(surf_obj, outer_colour, show_edges=False, show_outline=True):
-    """
-    Generates 3 VTK actors.
+    """Generates 3 VTK actors.
 
     Returns 3 VTK actors, which represents an object in a rendered scene.
 
@@ -791,13 +782,29 @@ def generate_vtk_actors(surf_obj, outer_colour, show_edges=False, show_outline=T
 
 
 class Component:
-    """
-    Class defining a zone surface.
+    """Class defining a zone surface.
+
+    Properties
+        name: string
+        position: string
+            VERT, CEIL, FLOR, SLOP
+        child: string or None
+            name of the parent surface
+        usage: list (2) or None
+            usage tags
+        construction: string
+        optical_type: string
+            OPAQUE or transparent properties
+        boundary: string
+            other side boundary condition
+        child_verts: list, list, list (3), float
+            vertex cordinates for each child surface
+        vertices_surf: list, list (3), float
+            surface vertex coordinates
     """
 
     def __init__(self, property_list, child_verts, vertices_surf):
-        """
-        Self-creation method.
+        """Constructor.
         
         Arguments
             property_list: list
@@ -836,8 +843,7 @@ class Component:
         self.vertices_surf = vertices_surf
 
     def generate_vtk_surface(self):
-        """
-        Generate building component surface as a VTK object.
+        """Generate building component surface as a VTK object.
 
         Arguments
             None
@@ -908,7 +914,8 @@ class Component:
                         matches = 0
                         is_match = False
                         for v in inner:
-                            if v in child:
+                            isin,_ = is_point_in_surf(v,child)
+                            if isin:
                                 matches += 1
                                 if matches == 4:
                                     is_match = True
@@ -921,7 +928,7 @@ class Component:
                         x.reverse()
                         vertices_surfs_inner.append(x)
 
-            # Setup points for outside polygon.
+            # Set up points for outside polygon.
             points = vtk.vtkPoints()
             polys = vtk.vtkCellArray()
             i = 0
@@ -942,9 +949,6 @@ class Component:
                         poly.GetPointIds().InsertNextId(i)
                         i += 1
                 polys.InsertNextCell(poly)
-
-            # from vtk.util import numpy_support
-            # print(numpy_support.vtk_to_numpy(points.GetData()))
 
             # Define transform to rotate the surface into the X-Y plane for Delaunay filter.
             transform = vtk.vtkTransform()
@@ -970,10 +974,6 @@ class Component:
                 D = np.degrees(np.arccos(np.dot(normSurf,normXY)))
                 transform.RotateWXYZ(D,plnInt)
 
-            # x = vtk.vtkPoints()
-            # transform.TransformPoints(points,x)
-            # print(numpy_support.vtk_to_numpy(x.GetData()))
-
             # Setup polydata.
             iPolyData = vtk.vtkPolyData()
             sPolyData = vtk.vtkPolyData()
@@ -988,28 +988,14 @@ class Component:
             # created and ordered in the right direction to indicate inside and
             # outside of the polygon.
             surf_obj = vtk.vtkDelaunay2D()
-
-            # The input to the Delaunay2D filter is a list of points specified in 3D
-            # even though the triangulation is 2D.
-            # Thus the triangulation is constructed in the x-y plane, and the z coordinate
-            #  is ignored (although carried through to the output).
-            # Need to compute the best-fitting plane to the set of points, project the points
-            # and that plane and then perform the triangulation using their projected positions
-            # and then use it as the plane in which the triangulation is performed.
-            # Look into vtkContourTriangulator as well.
-
             surf_obj.SetInputData(iPolyData)
             surf_obj.SetSourceData(sPolyData)
             surf_obj.SetTransform(transform)
-            # surf_obj.SetProjectionPlaneMode(vtk.VTK_BEST_FITTING_PLANE)
-
-            # print(numpy_support.vtk_to_numpy(surf_obj.GetOutput().GetDataObjectType()))
 
         return surf_obj
 
     def set_outer_colour(self):
-        """
-        Set default colour of otherside surface based on boundary conditions.
+        """Set colour of otherside surface based on boundary conditions.
 
         Arguments
             None
@@ -1020,10 +1006,7 @@ class Component:
                 suitable for input to generate_vtk_actors(...)
                 e.g. ["#F8F4FF", 1.]
 
-        Example        
-            sas = []
-            eas = []
-            oas = []
+        Example
             geo = get.geometry(geometry_file)
             for comp in geo['components']:
                 sa,ea,oa = plot.generate_vtk_actors(
@@ -1099,9 +1082,7 @@ class Component:
 
 
 def is_point_in_surf(point, verts, tol = 0.0001):
-    """
-    Checks if point p is already in list of vertices verts
-    within tolerance tol.
+    """Checks if point is in a list of vertices within a tolerance
     
     Arguments
         point: list (3), float
@@ -1125,7 +1106,8 @@ def is_point_in_surf(point, verts, tol = 0.0001):
 
 
 def get_outer_inner(verts, add_intermediate = True):
-    """
+    """Separate weakly simple polygons into outer and inner.
+
     Process list of vertices, removing duplicates and
     separating outer and inner polygons into lists.
     Optionally adds intermediate vertices using insert_edge.
@@ -1215,8 +1197,7 @@ def get_outer_inner(verts, add_intermediate = True):
 
 
 def dist(v1, v2):
-    """
-    Get distance between two 3D points v1 and v2.
+    """Get distance between two 3D points v1 and v2.
 
     Arguments
         v1: list (3), float
@@ -1236,9 +1217,10 @@ def dist(v1, v2):
 
 
 def insert_edge(verts, v1, v2, insert_v1 = False, insert_v2 = True):
-    """
-    Insert the edge between vertices v1 and v2 into list verts.
-    Inserts intermediate vertices, ensuring that no edge is greater than 1m.
+    """Insert the edge between vertices v1 and v2 into vertices list.
+
+    Also inserts intermediate vertices, ensuring that no edge is
+    longer than 1m.
 
     Arguments
         verts: list, list (3), float
@@ -1274,8 +1256,7 @@ def insert_edge(verts, v1, v2, insert_v1 = False, insert_v2 = True):
 
 
 def normalized(X):
-    """
-    Normalises magnitude of vector.
+    """Normalises magnitude of vector.
 
     Code adapted from:
     https://gist.github.com/marmakoide/79f361dd613f2076ece544070ddae6ab
@@ -1293,8 +1274,7 @@ def normalized(X):
 
 
 def calculate_plane_intersect(A,B):
-    """
-    Calculates a line at the intersection of two planes.
+    """Calculates a line at the intersection of two planes.
 
     Code adapted from:
     https://gist.github.com/marmakoide/79f361dd613f2076ece544070ddae6ab
@@ -1319,7 +1299,8 @@ def calculate_plane_intersect(A,B):
 
 
 def calculate_normal(p):
-    """
+    """Calculate normal of polygon.
+    
     Newell's method for calculating the normal of an arbitrary 3D polygon.
 
     Arguments
