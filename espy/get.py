@@ -264,7 +264,8 @@ def geometry(filepath):
             try:
                 iParent = [a[0] for a in props].index(prop[2])
             except ValueError:
-                print('Warning: parent surface '+prop[2]+' for child '+prop[0]+' does not exist')
+                # print('Warning: parent surface '+prop[2]+' for child '+prop[0]+' does not exist')
+                pass
             else:
                 if not child_verts[iParent]:
                     child_verts[iParent] = []
