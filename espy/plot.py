@@ -11,6 +11,7 @@ This is a work in progress.
 
 import itertools
 import matplotlib.pyplot as plt
+import matplotlib.dates as md
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from espy import get
@@ -95,9 +96,8 @@ def cuboid_data(o, size=(1, 1, 1)):
         o: list or tuple (3), float
             coordinates of cuboid origin
             e.g. [0., 0., 0.]
-        size: list or tuple (3), float
+        size: list or tuple (3), float; default (1, 1, 1)
             size of cuboid
-            optional, default (1, 1, 1)
 
     Returns
         numpy.ndarray, float
@@ -171,12 +171,10 @@ def plot_cuboid(pos=(0., 0., 0.), size=(1., 1., 1.), ax=None, **kwargs):
     """Plot a cuboid element.
     
     Arguments
-        pos: list or tuple (3), float
+        pos: list or tuple (3), float; default (0, 0, 0)
             cuboid origin coordinates
-            optional, default (0., 0., 0.)
-        size: list or tuple (3), float
+        size: list or tuple (3), float; default (1, 1, 1)
             cuboid size
-            optional, default (1., 1., 1.)
         ax: matplotlib.axes.Axes
             e.g. output from plt.gca()
         **kwargs
@@ -234,14 +232,12 @@ def plot_zone_surface(vertices, ax=None, facecolour=None, alpha=0.2):
             e.g. [[0., 0., 0.],[0., 1., 0.],...]
         ax: matplotlib.axes.Axes
             e.g. output from plt.gca()
-        facecolour: string
+        facecolour: str; default None (white)
             surface colour hash code
             e.g. '#c19a6b'
-            optional, default None (i.e. white)
-        alpha: float
+        alpha: float; default 0.2
             opacity
             0.0 - 1.0
-            optional, default 0.2
 
     Returns
         None
@@ -274,13 +270,12 @@ def plot_zone(geo_file, ax=None, show_roof=True):
     """Plot zone geometry with pyplot.
 
     Arguments
-        geo_file: string
+        geo_file: str
             name of zone geometry file
         ax: matplotlib.axes.Axes
             e.g. output from plt.gca()
-        show_roof: boolean
+        show_roof: boolean; default True
             If True show roof surface(s)
-            optional, default True
 
     Returns
         None
@@ -401,7 +396,7 @@ def construction_schematic(
     to trim whitespace from the image.
 
     Arguments
-        constr_name: string
+        constr_name: str
             name of construction
         constr_data: list, list
             construction data
@@ -411,10 +406,9 @@ def construction_schematic(
             output from get.constructions(...)["air_gap_props"]
         figsize: list or tuple (2), float
             length and height of figure in inches
-        savefig: boolean
+        savefig: boolean; default False
             if True save figure in images directory
             if False display plot and pause
-            optional, default False
 
     Returns
         None
@@ -480,9 +474,9 @@ def plot_zone_constructions(con_file, geo_file, ax=None):
     """Plot all zone constructions in 3D.
 
     Arguments
-        con_file: string
+        con_file: str
             zone construction file name
-        geo_file: string
+        geo_file: str
             zone geometry file name
         ax: matplotlib.axes.Axes
             e.g. output from plt.gca()
@@ -514,17 +508,16 @@ def plot_building_component(geo_file, con_file, idx_surface, ax=None, show_roof=
     is dependent on the surface properties from the geometry file.
 
     Arguments
-        geo_file: string
+        geo_file: str
             zone geometry file name
-        con_file: string
+        con_file: str
             zone construction file name
-        idx_surface: integer
+        idx_surface: int
             surface index
         ax: matplotlib.axes.Axes
             e.g. output from plt.gca()
-        show_roof: boolean
+        show_roof: boolean; default True
             if True show roof surface(s)
-            optional, default True
 
     Returns
         None
@@ -683,12 +676,10 @@ def generate_vtk_actors(surf_obj, outer_colour, show_edges=False, show_outline=T
         outer_colour: list
             Colour and opacity of surface 
             e.g. ["#f5f2d0", 1]
-        show_edges: boolean
+        show_edges: boolean; default False
             If True show edges of triangle mesh
-            optional, default False
-        show_outline: boolean
+        show_outline: boolean; default True
             If True show surface outline
-            optional, default True
 
     Returns
         surface_actor: vtk.vtkOpenGLActor
@@ -785,17 +776,17 @@ class Component:
     """Class defining a zone surface.
 
     Properties
-        name: string
-        position: string
+        name: str
+        position: str
             VERT, CEIL, FLOR, SLOP
-        child: string or None
+        child: str or None
             name of the parent surface
         usage: list (2) or None
             usage tags
-        construction: string
-        optical_type: string
+        construction: str
+        optical_type: str
             OPAQUE or transparent properties
-        boundary: string
+        boundary: str
             other side boundary condition
         child_verts: list, list, list (3), float
             vertex cordinates for each child surface
@@ -1090,14 +1081,13 @@ def is_point_in_surf(point, verts, tol = 0.0001):
             e.g. [1., 1., 0.]
         verts: list, list (3), float
             list of vertex point coordinates
-        tol: float
+        tol: float; default 0.0001
             tolerance of total distance
-            optional, default 0.0001
         
     Returns
         boolean
             True if point is found in verts
-        i: integer or None    
+        i: int or None    
             index of existing vertex if point found
     """
     for i,v in enumerate(verts):
@@ -1116,9 +1106,8 @@ def get_outer_inner(verts, add_intermediate = True):
         verts: list, list (3), float
             list of vertex coordinates
             e.g. [[0., 0., 0.], [1., 0., 0], ...]
-        add_intermediate: boolean
+        add_intermediate: boolean; default True
             inserts intermediate vertices if True
-            optional, default True
 
     Returns
         outer: list, list (3), float
@@ -1219,7 +1208,7 @@ def dist(v1, v2):
 def insert_edge(verts, v1, v2, insert_v1 = False, insert_v2 = True):
     """Insert the edge between vertices v1 and v2 into vertices list.
 
-    Also inserts intermediate vertices, ensuring that no edge is
+    Also inserts intermediate vertices, ensuring that no edge isTrue
     longer than 1m.
 
     Arguments
@@ -1229,12 +1218,10 @@ def insert_edge(verts, v1, v2, insert_v1 = False, insert_v2 = True):
             coordinates for start vertex of edge
         v2: list (3), float
             coordinates for end vertex of edge
-        insert_v1: boolean
+        insert_v1: boolean; default False
             inserts v1 into verts if True
-            optional, default False
-        insert_v2: boolean
+        insert_v2: boolean; default True
             inserts v2 into verts if True
-            optional, default True
 
     Returns
         None (modifies verts in-place)
@@ -1327,3 +1314,90 @@ def calculate_normal(p):
     nn[2] = normal[2] / math.sqrt(
         (normal[0]) ** 2 + (normal[1]) ** 2 + (normal[2]) ** 2)
     return nn
+
+
+def std_date_axis(ax):
+    """Format a datetime pyplot axis.
+    
+    Arguments
+        ax: matplotlib.axes.Axes
+            e.g. output from plt.gca()
+
+    Returns
+        None (modifies ax in-place)
+    """
+    
+    xloc = md.AutoDateLocator()
+    axis.xaxis.set_major_locator(xloc)
+    axis.xaxis.set_major_formatter(md.ConciseDateFormatter(xloc))
+
+
+def standard_graph(xdata, ydata, xlabel = None, ylabel = None, legend = None, file_name = None):
+    """Create a standard pyplot graph.
+
+    Assumes xdata is datetime.
+
+    This function should create a reasonable x-y line graph given 
+    arbitrary data obtained from res.time_series. It can also be used
+    as a template for creating more complex graphs.
+
+    Arguments xdata and ydata are passed unmodified to 
+    matplotlib.pyplot.plot; for greater detail on the possible forms
+    of these inputs, see documentation for this function.
+
+    Arguments
+        xdata: any 1D or 2D iterable
+            x values for data points
+        ydata: any 1D or 2D iterable
+            y values for data points
+        xlabel: str or None; default None
+            label for x axis
+            no label if None
+        ylabel: str or None; default None
+            label for y axis
+            no label if None
+        legend: list, str or None; default None
+            list of series names for graph legend
+            must have same length as number of columns in ydata
+            no legend if None
+        file_name: str or None; default None
+            if None, displays graph and waits for user to close
+            if not, saves graph with this file name
+
+    Returns
+        None
+
+    Example
+        bps.run_preset('model.cfg','preset')
+        zones = ['liv','kit','bed1','bed2']
+        df_res = res.time_series(
+            'model.cfg',
+            'results.res',
+            [[['id:'+a for a in zones],'Zone db T']])
+        standard_graph(
+            df_res.index,
+            df_res.iloc[:,:],
+            ylabel='Temperature (C)',
+            legend=zones)
+    """
+
+    # Plot data.
+    plt.plot(xdata,ydata)
+
+    # Format axes.
+    axs = plt.gca()
+    std_date_axis(axs)
+
+    # Format labels.
+    if xlabel: axs.set(xlabel=xlabel)
+    if ylabel: axs.set(ylabel=ylabel)
+
+    # Format legend.
+    if legend: axs.legend(legend)
+
+    # Display or save graph.
+    if file_name:
+        plt.savefig(file_name)
+    else:
+        plt.show()
+
