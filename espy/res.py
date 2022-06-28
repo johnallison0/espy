@@ -740,17 +740,24 @@ def running_mean(data, alpha=0.8, daily=True):
     return running_mean
 
 
-def add_BS15251_comfort(data, category=2):
+def add_BS15251_comfort(data,category=2):
     """Adds BS EN 15251:2007 comfort limits to dataframe.
 
-    Uses criteria for non-mechanically cooled buildings, as described
-    in Annex A.2.
+    Uses criteria for non-mechanically cooled residential buildings,
+    as described in Annexes A.1 and A.2, using recommended values in
+    Table A.2 when outside the valid temperature range for adaptive
+    criteria. Note that there is no upper temperature for residential
+    circulation zones, so the temperature for living is used in this
+    case.
     
     Assumes that data contains a column called 'Ambientdb(C)(C)', as 
     would be output from time_series. Raises exception if not.
 
-    Adds two new columns into data, called 'upperComfort' and 
-    'lowerComfort'.
+    Adds four new columns into data, called:
+    'livingUpperComfort'
+    'livingLowerComfort'
+    'otherUpperComfort'
+    'otherLowerComfort'
 
     Arguments
         data: pandas.DataFrame
@@ -763,25 +770,41 @@ def add_BS15251_comfort(data, category=2):
 
     Example
         df = time_series('model.cfg','results.res',[
-            ['zone','Zone Resultant T'],
+            [['liv','hall'],'Zone Resultant T'],
             ['all','Ambient temperature']])
-        add_BS15251_comfort(df)        
-        overheating_mask = df['zoneResT(C)']-df['upperComfort'] > 0
-        underheating_mask = df['zoneResT(C)']-df['lowerComfort'] < 0
+        add_BS15251_comfort(df)
+        liv_overheating_mask = df['livResT(C)']-df['livingUpperComfort'] > 0
+        liv_underheating_mask = df['livResT(C)']-df['livingLowerComfort'] < 0
+        hall_overheating_mask = df['hallResT(C)']-df['otherUpperComfort'] > 0
+        hall_underheating_mask = df['hallResT(C)']-df['otherLowerComfort'] < 0
     """
 
     if category == 1:
         v = 2
+        ll = 21.
+        lu = 25.5
+        ol = 18.
+        ou = lu
     elif category == 2:
         v = 3
+        ll = 20.
+        lu = 26.
+        ol = 16.
+        ou = lu
     elif category ==3:
         v = 4
+        ll = 18.
+        lu = 27.
+        ol = 14.
+        ou = lu
     else:
         print('Invalid category')
         return
     rm = running_mean(data['Ambientdb(C)(C)'])
-    data['upperComfort'] = [26. if x<10 else 0.33*x+18+v for x in rm]
-    data['lowerComfort'] = [20. if x<15 else 0.33*x+18-v for x in rm]
+    data['livingUpperComfort'] = [lu if x<10 else 0.33*x+18+v for x in rm]
+    data['livingLowerComfort'] = [ll if x<15 else 0.33*x+18-v for x in rm]
+    data['otherUpperComfort'] = [ou if x<10 else 0.33*x+18+v for x in rm]
+    data['otherLowerComfort'] = [ol if x<15 else 0.33*x+18-v for x in rm]
 
     
 
