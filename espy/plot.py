@@ -1328,8 +1328,8 @@ def std_date_axis(ax):
     """
     
     xloc = md.AutoDateLocator()
-    axis.xaxis.set_major_locator(xloc)
-    axis.xaxis.set_major_formatter(md.ConciseDateFormatter(xloc))
+    ax.xaxis.set_major_locator(xloc)
+    ax.xaxis.set_major_formatter(md.ConciseDateFormatter(xloc))
 
 
 def standard_graph(xdata, ydata, xlabel = None, ylabel = None, legend = None, file_name = None):
