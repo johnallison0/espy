@@ -6,6 +6,7 @@ from shutil import move
 from tempfile import mkstemp
 import numpy as np
 import datetime as dt
+from calendar import monthrange
 
 
 def header(str_in, lvl=0):
@@ -99,15 +100,34 @@ def area(poly):
 
     
 def dtparse_espr(d):
-    """
-    Parser for esp-r datetime format.
-    This is needed because days do not match time steps intuitively for Python.
+    """Parser for esp-r datetime format.
+
+    This is useful for old versions of ESP-r (<13.3.15) because days
+    did not match time steps intuitively.
+
+    Example
+        res.time_series('model.cfg','results.res',[['all','Zone db T']],out_file='results.csv')
+        df = pandas.read_csv(
+            'results.csv',
+            index_col=0,
+            parse_dates=True,
+            date_parser = dtparse_espr)
     """
     lout=[]
     for a in d:
         la=a.split(' ')
         ld=la[0].split('-')
         lt=la[1].split(':')
-        if lt[0]=='00' and lt[1]=='00': ld[2]=str(int(ld[2])+1)
+        if lt[0]=='00' and lt[1]=='00':
+            x = int(ld[2])+1
+            if x > monthrange(int(ld[0]),int(ld[1]))[1]:
+                x = int(ld[1])+1
+                if x > 12:
+                    lt = ['23','59','59']
+                else:
+                    ld[1] = str(x)
+                    ld[2] = '1'
+            else:
+                ld[2] = str(x)
         lout.append(dt.datetime(int(ld[0]),int(ld[1]),int(ld[2]),hour=int(lt[0]),minute=int(lt[1]),second=int(lt[2])))
     return lout

@@ -358,15 +358,19 @@ def time_series(cfg_file, res_file, param_list, out_file=None, time_fmt='DateTim
                     writer.writerow(newrow)
                 line_count += 1
 
-    if time_fmt == 'DateTime':
-        data_frame = pandas.read_csv(
-            "temp.csv", sep=",", header=3, index_col=0,
-            parse_dates=True, date_parser=dtparse_espr
-        )
-    else:
-        data_frame = pandas.read_csv(
-            "temp.csv", sep=",", header=3, index_col=0, parse_dates=True
-        )
+    # if time_fmt == 'DateTime':
+    #     data_frame = pandas.read_csv(
+    #         "temp.csv", sep=",", header=3, index_col=0,
+    #         parse_dates=True, date_parser=dtparse_espr
+    #     )
+    # else:
+    data_frame = pandas.read_csv(
+        "temp.csv",
+        sep=",",
+        header=3,
+        index_col=0,
+        parse_dates=True,
+        infer_datetime_format=True)
     os.remove("temp.csv")
 
     return data_frame
