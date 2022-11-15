@@ -3,6 +3,7 @@ import itertools
 from subprocess import PIPE, run
 
 from espy import get
+from espy.utils import area
 
 
 def edit_material_prop(cfg_file, change_list):
@@ -369,6 +370,7 @@ def add_window(cfg_file, zone, surf, location, size, sill=None, reveal=None):
         prj2 = []
     return prj1, prj2
 
+
 def add_zone(
     cfg_file, name, vertices, description=None, z_base=0, z_top=2.7, rot_angle=0
 ):
@@ -399,8 +401,8 @@ def add_zone(
     print(f"{name}: {description}")
     sup2 = "\u00B2"
     sup3 = "\u00B3"
-    print(f"Floor area, A = {get.area(vertices):.3f} m{sup2}")
-    print(f"Zone volume, V = {get.area(vertices)*z_top:.3f} m{sup3}")
+    print(f"Floor area, A = {area(vertices):.3f} m{sup2}")
+    print(f"Zone volume, V = {area(vertices)*z_top:.3f} m{sup3}")
     for i, v in enumerate(vertices):
         print(f"X&Y for v{i+1:3d} is   {v[0]:.4f}  {v[1]:.4f}")
 

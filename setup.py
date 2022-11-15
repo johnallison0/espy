@@ -11,5 +11,12 @@ setup(
     author='John Allison',
     author_email='',
     packages=['espy'],  #same as name
-    install_requires=['datetime', 'matplotlib', 'numpy', 'pandas', 'vtk', 'wand'], #external packages as dependencies
+    install_requires=[  # external package dependencies
+        'datetime',
+        'matplotlib',
+        'numpy',
+        'pandas',
+        'vtk',
+        'wand'
+    ], 
 )

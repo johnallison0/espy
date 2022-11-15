@@ -74,9 +74,42 @@ $(function() {
 Functions</h2></td></tr>
 <tr class="memitem:a3019263718937336639d73dc8e75db22"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceespy_1_1clm.html#a3019263718937336639d73dc8e75db22">get_avg_degree_days</a> (weather_file, temp_base=15.5)</td></tr>
 <tr class="separator:a3019263718937336639d73dc8e75db22"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a113a34ca1bfbfc4e452fcde72079a3a0"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceespy_1_1clm.html#a113a34ca1bfbfc4e452fcde72079a3a0">epw_to_espr</a> (epw_file, espr_file=&quot;newclim&quot;)</td></tr>
+<tr class="separator:a113a34ca1bfbfc4e452fcde72079a3a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a20a166098875ba0583cda020b9259e0d"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceespy_1_1clm.html#a20a166098875ba0583cda020b9259e0d">weather_bin_to_ascii</a> (bin_file, ascii_file=&quot;newclim.a&quot;)</td></tr>
+<tr class="separator:a20a166098875ba0583cda020b9259e0d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><pre class="fragment">Functions to interact with clm.</pre> </div><h2 class="groupheader">Function Documentation</h2>
+<a id="a113a34ca1bfbfc4e452fcde72079a3a0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a113a34ca1bfbfc4e452fcde72079a3a0">&#9670;&nbsp;</a></span>epw_to_espr()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">def espy.clm.epw_to_espr </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>epw_file</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>espr_file</em> = <code>&quot;newclim&quot;</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<pre class="fragment">Convert EPW file to ESP-r binary weather file.
+</pre> 
+</div>
+</div>
 <a id="a3019263718937336639d73dc8e75db22"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a3019263718937336639d73dc8e75db22">&#9670;&nbsp;</a></span>get_avg_degree_days()</h2>
 
@@ -103,6 +136,35 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <pre class="fragment">Returns the daily average degree days</pre> 
+</div>
+</div>
+<a id="a20a166098875ba0583cda020b9259e0d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a20a166098875ba0583cda020b9259e0d">&#9670;&nbsp;</a></span>weather_bin_to_ascii()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">def espy.clm.weather_bin_to_ascii </td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>bin_file</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>ascii_file</em> = <code>&quot;newclim.a&quot;</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<pre class="fragment">Convert ESP-r binary weather file to ascii file.
+</pre> 
 </div>
 </div>
 </div><!-- contents -->
