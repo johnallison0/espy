@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Helper utilities"""
+"""Low level utilities"""
 import re
 from os import fdopen
 from shutil import move
 from tempfile import mkstemp
+import numpy as np
+import datetime as dt
+from calendar import monthrange
 
 
 def header(str_in, lvl=0):
@@ -70,3 +73,61 @@ def sed(pattern, replace, source, dest=None, count=0):
 
     if not dest:
         move(name, source)
+
+        
+def area(poly):
+    """area of polygon poly
+    Source: https://stackoverflow.com/a/12643315
+    Source 2: http://geomalgorithms.com/a01-_area.html#3D%20Polygons
+    """
+
+    if len(poly) < 3:  # not a plane - no area
+        return 0
+
+    total = [0, 0, 0]
+    for i, _ in enumerate(poly):
+        vi1 = poly[i]
+        if i is len(poly) - 1:
+            vi2 = poly[0]
+        else:
+            vi2 = poly[i + 1]
+        prod = np.cross(vi1, vi2)
+        total[0] += prod[0]
+        total[1] += prod[1]
+        total[2] += prod[2]
+    result = np.linalg.norm(total)
+    return round(result / 2, 3)
+
+    
+def dtparse_espr(d):
+    """Parser for esp-r datetime format.
+
+    This is useful for old versions of ESP-r (<13.3.15) because days
+    did not match time steps intuitively.
+
+    Example
+        res.time_series('model.cfg','results.res',[['all','Zone db T']],out_file='results.csv')
+        df = pandas.read_csv(
+            'results.csv',
+            index_col=0,
+            parse_dates=True,
+            date_parser = dtparse_espr)
+    """
+    lout=[]
+    for a in d:
+        la=a.split(' ')
+        ld=la[0].split('-')
+        lt=la[1].split(':')
+        if lt[0]=='00' and lt[1]=='00':
+            x = int(ld[2])+1
+            if x > monthrange(int(ld[0]),int(ld[1]))[1]:
+                x = int(ld[1])+1
+                if x > 12:
+                    lt = ['23','59','59']
+                else:
+                    ld[1] = str(x)
+                    ld[2] = '1'
+            else:
+                ld[2] = str(x)
+        lout.append(dt.datetime(int(ld[0]),int(ld[1]),int(ld[2]),hour=int(lt[0]),minute=int(lt[1]),second=int(lt[2])))
+    return lout

@@ -17,3 +17,33 @@ def get_avg_degree_days(weather_file, temp_base=15.5):
         lines = f_in.read().splitlines()
         last_line = lines[-2].split(",")[1]
     return float(last_line)
+    
+
+def epw_to_espr(epw_file, espr_file="newclim"):
+    """Convert EPW file to ESP-r binary weather file.
+    """
+
+    cmd = ["*", espr_file, "k", "a", epw_file, "-"]
+    cmd = "\n".join(cmd)
+    run(
+        ["clm", "-mode", "script"],
+        stdout=PIPE,
+        input=cmd,
+        encoding="ascii",
+        check=True,
+    )
+
+    
+def weather_bin_to_ascii(bin_file, ascii_file="newclim.a"):
+    """Convert ESP-r binary weather file to ascii file.
+    """
+
+    cmd = ["<", bin_file, "j", "a", ascii_file, "Y", "-"]
+    cmd = "\n".join(cmd)
+    run(
+        ["clm", "-mode", "script"],
+        stdout=PIPE,
+        input=cmd,
+        encoding="ascii",
+        check=True,
+    )
